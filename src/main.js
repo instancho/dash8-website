@@ -230,10 +230,16 @@ function initHeroTexture() {
 requestAnimationFrame(initHeroTexture);
 
 // ── HDRI environment ───────────────────────────────────────────────────────
-new EXRLoader().load('Assets/textures/NightEnvironmentHDRI007_2K_HDR.exr', (exrTexture) => {
-  exrTexture.mapping = THREE.EquirectangularReflectionMapping;
-  scene.environment = exrTexture;
-});
+new EXRLoader().load(
+  '/Assets/textures/NightEnvironmentHDRI007_2K_HDR.exr',
+  (exrTexture) => {
+    exrTexture.mapping = THREE.EquirectangularReflectionMapping;
+    scene.environment = exrTexture;
+    console.log('HDRI loaded');
+  },
+  undefined,
+  (err) => { console.error('HDRI failed to load:', err); }
+);
 
 // ── Lighting ───────────────────────────────────────────────────────────────
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
