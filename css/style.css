@@ -1,0 +1,345 @@
+@font-face {
+  font-family: 'SneakersMax';
+  src: url('../Font/sneakers-max/SneakersMax200-LightObl.otf') format('opentype');
+  font-weight: 300;
+  font-style: oblique;
+}
+
+/* ── Design tokens ────────────────────────────────────────── */
+:root {
+  --bg:  #0a0a0a;
+  --fg:  #e8e8e8;
+  --dim: #666;
+  --accent:  #ff3d00;
+  --blue:    #1C4FE8;
+
+  /* Navbar */
+  --nav-font:     18px;
+  --nav-cta-font: 22px;
+  --nav-gap:      36px;
+  --nav-link-gap: 28px;
+  --nav-bottom:   40px;
+  --nav-logo-h:   14px;
+  --nav-cta-pad:  6px 17px 4px;
+}
+
+/* ── Reset ────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+  overscroll-behavior: none;     /* disable iOS bounce / Android pull-to-refresh */
+}
+
+body {
+  overscroll-behavior: none;
+}
+
+/* ── Navbar ───────────────────────────────────────────────── */
+#navbar {
+  position: fixed;
+  bottom: max(var(--nav-bottom), env(safe-area-inset-bottom));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  pointer-events: none;
+  max-width: calc(100vw - 32px);
+}
+
+.nav-inner {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--nav-gap);
+  pointer-events: auto;
+  white-space: nowrap;
+  padding: 10px 10px 8px;
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(8px) saturate(1.4);
+  -webkit-backdrop-filter: blur(8px) saturate(1.4);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+}
+
+/* Logo */
+.nav-logo {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+  cursor: pointer;
+  opacity: 1;
+  transition: opacity 0.08s;
+  flex-shrink: 0;
+}
+.nav-logo:hover { opacity: 0.65; }
+
+.nav-logo-img {
+  height: var(--nav-logo-h);
+  width: auto;
+  display: block;
+}
+
+/* Nav links */
+.nav-links {
+  display: flex;
+  gap: var(--nav-link-gap);
+  align-items: center;
+}
+
+.nav-link {
+  font-family: 'Micro 5', monospace;
+  font-size: var(--nav-font);
+  color: rgba(255, 255, 255, 0.35);
+  text-decoration: none;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.08s;
+}
+.nav-link.active { color: rgba(255, 255, 255, 1); }
+
+/* Scramble spans — inherit parent color, no wrapping */
+.nav-link .gs, .nav-cta .gs { display: inline; color: inherit; }
+
+/* CTA */
+.nav-cta {
+  font-family: 'Micro 5', monospace;
+  font-size: var(--nav-cta-font);
+  color: #fff;
+  background: var(--blue);
+  text-decoration: none;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  white-space: nowrap;
+  padding: var(--nav-cta-pad);
+  flex-shrink: 0;
+  transition: background 0.08s, color 0.08s;
+}
+.nav-cta:hover { background: #fff; color: var(--bg); }
+
+/* Scroll-progress dots */
+.nav-progress {
+  margin-top: 8px;
+  display: flex;
+  gap: 5px;
+  pointer-events: none;
+}
+
+.nav-dot {
+  width: 2px;
+  height: 4px;
+  border-radius: 0;
+  background: rgba(255, 255, 255, 0.12);
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+.nav-dot.filled { background: rgba(255, 255, 255, 0.75); }
+.nav-dot.active  { background: var(--blue); }
+
+/* ── Full-screen scene stack ──────────────────────────────── */
+.scene {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  z-index: 1;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.7s ease-in-out;
+}
+.scene.active {
+  opacity: 1;
+  pointer-events: auto;
+  z-index: 2;
+}
+
+/* ── Hero ─────────────────────────────────────────────────── */
+#hero {
+  overflow: hidden;
+  cursor: crosshair;
+}
+
+#hero canvas {
+  display: block;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+#hero .ascii-crt   { z-index: 2; }
+#hero .ascii-grain { z-index: 3; }
+
+.hero-loader {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  z-index: 10;
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  color: var(--dim);
+  text-transform: uppercase;
+  transition: opacity 0.4s;
+  pointer-events: none;
+}
+.hero-loader.hidden { opacity: 0; }
+.hero-loader::before { content: ':/'; color: var(--accent); margin-right: 10px; }
+
+/* ── Global CRT + grain (shared across all sections) ─────── */
+.ascii-crt {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 12;
+  mix-blend-mode: multiply;
+  background-image:
+    repeating-linear-gradient(
+      to bottom,
+      rgba(0,0,0,0)    0,    rgba(0,0,0,0)    1px,
+      rgba(0,0,0,0.26) 1px,  rgba(0,0,0,0.26) 2px
+    );
+}
+
+.ascii-grain {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 13;
+  mix-blend-mode: screen;
+  opacity: 0.028;
+  background-size: 160px 160px;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 1 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  animation: grain-shift 1.5s steps(1) infinite;
+}
+
+@keyframes grain-shift {
+  0%   { background-position:    0px    0px; }
+  10%  { background-position:  -40px   20px; }
+  20%  { background-position:   60px  -30px; }
+  30%  { background-position:  -20px   50px; }
+  40%  { background-position:   80px   10px; }
+  50%  { background-position:  -60px  -40px; }
+  60%  { background-position:   30px   60px; }
+  70%  { background-position:  -80px   30px; }
+  80%  { background-position:   50px  -50px; }
+  90%  { background-position:  -30px  -20px; }
+  100% { background-position:    0px    0px; }
+}
+
+/* ── Responsive: Tablet (≤ 768px) ────────────────────────── */
+@media (max-width: 768px) {
+  :root {
+    --nav-font:     15px;
+    --nav-cta-font: 18px;
+    --nav-gap:      24px;
+    --nav-link-gap: 18px;
+    --nav-bottom:   20px;
+    --nav-logo-h:   12px;
+    --nav-cta-pad:  5px 13px 3px;
+  }
+}
+
+/* ── Responsive: Mobile (≤ 480px) ────────────────────────── */
+@media (max-width: 480px) {
+  :root {
+    --nav-font:     13px;
+    --nav-cta-font: 15px;
+    --nav-gap:      14px;
+    --nav-link-gap: 12px;
+    --nav-bottom:   16px;
+    --nav-logo-h:   10px;
+    --nav-cta-pad:  4px 10px 2px;
+  }
+
+  /* Hide middle links — just logo + CTA on small screens */
+  .nav-links { display: none; }
+}
+
+/* ── Lenis ────────────────────────────────────────────── */
+html.lenis, html.lenis body {
+  height: auto;
+}
+.lenis.lenis-smooth {
+  scroll-behavior: auto;
+}
+
+/* ── Three.js Canvas ─────────────────────────────────── */
+#three-canvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+  pointer-events: none;
+}
+
+/* ── Content Overlays ────────────────────────────────── */
+.content-overlay {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  z-index: 2;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.content-overlay.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* ── Scroll Spacer ───────────────────────────────────── */
+#scroll-spacer {
+  height: 1000vh;
+  width: 100%;
+  pointer-events: none;
+  position: relative;
+}
+
+/* ── Placeholder Sections ────────────────────────────── */
+.section-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+}
+
+.section-placeholder .section-label {
+  font-family: 'Micro 5', monospace;
+  font-size: 14px;
+  color: var(--accent);
+  letter-spacing: 0.2em;
+  margin-bottom: 16px;
+}
+
+.section-placeholder h2 {
+  font-family: 'Micro 5', monospace;
+  font-size: 64px;
+  letter-spacing: 0.15em;
+  color: var(--fg);
+  margin-bottom: 12px;
+}
+
+.section-placeholder p {
+  font-size: 13px;
+  color: var(--dim);
+  letter-spacing: 0.1em;
+}

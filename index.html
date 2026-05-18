@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Dash8</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Micro+5&family=Share+Tech+Mono&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+  <style>
+    @font-face {
+      font-family: 'HouseSansComp';
+      src: url('Font/house-sans/HouseSans-CompBoldIta.otf') format('opentype');
+      font-weight: 700;
+      font-style: italic;
+      font-display: block;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ── Three.js 3D scene (background layer) ──────────── -->
+  <canvas id="three-canvas"></canvas>
+
+  <!-- ── Section content overlays ──────────────────────── -->
+  <section id="hero" class="content-overlay active">
+    <div class="hero-loader" id="hero-loader">Initialising</div>
+    <canvas id="hero-canvas"></canvas>
+    <div class="ascii-crt"></div>
+    <div class="ascii-grain"></div>
+  </section>
+
+  <section id="about" class="content-overlay">
+    <div class="section-placeholder">
+      <span class="section-label">://02</span>
+      <h2>ABOUT</h2>
+      <p>Content goes here</p>
+    </div>
+  </section>
+
+  <section id="projects" class="content-overlay">
+    <div class="section-placeholder">
+      <span class="section-label">://03</span>
+      <h2>PROJECTS</h2>
+      <p>Content goes here</p>
+    </div>
+  </section>
+
+  <section id="contact" class="content-overlay">
+    <div class="section-placeholder">
+      <span class="section-label">://04</span>
+      <h2>CONTACT</h2>
+      <p>Content goes here</p>
+    </div>
+  </section>
+
+  <!-- ── Navbar ────────────────────────────────────────── -->
+  <nav id="navbar">
+    <div class="nav-inner">
+      <a class="nav-logo" href="#">
+        <img src="Assets/Logo.svg" alt="Dash8" class="nav-logo-img" />
+      </a>
+      <div class="nav-links">
+        <a class="nav-link" href="#hero"     data-text="HOME"     data-section="hero">HOME</a>
+        <a class="nav-link" href="#about"    data-text="ABOUT"    data-section="about">ABOUT</a>
+        <a class="nav-link" href="#projects" data-text="PROJECTS" data-section="projects">PROJECTS</a>
+        <a class="nav-link" href="#contact"  data-text="CONTACT"  data-section="contact">CONTACT</a>
+      </div>
+      <a class="nav-cta" href="#contact" data-text="BOOK A CALL">BOOK A CALL</a>
+    </div>
+    <div class="nav-progress" id="navProgress"></div>
+  </nav>
+
+  <!-- ── Scroll spacer (creates scroll height for camera rotation) ── -->
+  <div id="scroll-spacer"></div>
+
+  <script src="js/char-cloud.js"></script>
+  <script src="js/navbar.js"></script>
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>
