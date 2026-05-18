@@ -693,9 +693,15 @@ if (window.visualViewport) window.visualViewport.addEventListener('resize', sche
 (async function boot() {
   try {
     if (document.fonts?.load) {
-      await document.fonts.load('italic 700 200px "HouseSansComp"');
-      await document.fonts.load('500 14px "JetBrains Mono"');
-      await document.fonts.ready;
+      const fontTimeout = new Promise(r => setTimeout(r, 3000));
+      await Promise.race([
+        Promise.all([
+          document.fonts.load('italic 700 200px "HouseSansComp"'),
+          document.fonts.load('500 14px "JetBrains Mono"'),
+          document.fonts.ready,
+        ]),
+        fontTimeout,
+      ]);
     }
   } catch (_) {}
 
