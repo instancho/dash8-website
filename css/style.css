@@ -1,6 +1,6 @@
 @font-face {
   font-family: 'SneakersMax';
-  src: url('../Font/sneakers-max/SneakersMax200-LightObl.otf') format('opentype');
+  src: url('/Font/sneakers-max/SneakersMax200-LightObl.otf') format('opentype');
   font-weight: 300;
   font-style: oblique;
 }
