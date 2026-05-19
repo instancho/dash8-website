@@ -223,8 +223,12 @@ function initHeroTexture() {
 
   screenMeshes[0].material.map = heroTexture;
   screenMeshes[0].material.emissiveMap = heroTexture;
-  screenMeshes[0].material.emissiveIntensity = 5.0;
+  screenMeshes[0].material.emissiveIntensity = 6.0;
   screenMeshes[0].material.transmission = 0;
+  screenMeshes[0].material.thickness = 0;
+  screenMeshes[0].material.metalness = 0;
+  screenMeshes[0].material.roughness = 1;
+  screenMeshes[0].material.clearcoat = 0;
   screenMeshes[0].material.needsUpdate = true;
 }
 requestAnimationFrame(initHeroTexture);
@@ -989,7 +993,7 @@ function updateGlitches(dt) {
             mat.emissiveMap.offset.y = g.origOffsetY;
           }
         }
-        mat.emissiveIntensity = (i === 0 && heroTexture) ? 5.0 : 2.0;
+        mat.emissiveIntensity = (i === 0 && heroTexture) ? 6.0 : 2.0;
         mat.emissive.setRGB(1, 1, 1);
       }
     }
