@@ -616,16 +616,16 @@ function createSciFiFloorTex() {
 
   // Grid lines
   const gridSize = 64;
-  ctx.strokeStyle = 'rgba(40, 70, 140, 0.25)';
-  ctx.lineWidth = 1;
+  ctx.strokeStyle = 'rgba(180, 190, 210, 0.2)';
+  ctx.lineWidth = 1.5;
   for (let i = 0; i <= size; i += gridSize) {
     ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, size); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(size, i); ctx.stroke();
   }
 
   // Brighter major grid every 4 cells
-  ctx.strokeStyle = 'rgba(50, 100, 180, 0.4)';
-  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = 'rgba(200, 210, 225, 0.29)';
+  ctx.lineWidth = 2.5;
   for (let i = 0; i <= size; i += gridSize * 4) {
     ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, size); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(size, i); ctx.stroke();
@@ -647,7 +647,7 @@ function createSciFiFloorTex() {
   }
 
   // Corner dots at intersections
-  ctx.fillStyle = 'rgba(68, 136, 255, 0.3)';
+  ctx.fillStyle = 'rgba(200, 210, 225, 0.25)';
   for (let x = 0; x <= size; x += gridSize * 4) {
     for (let y = 0; y <= size; y += gridSize * 4) {
       ctx.beginPath();
@@ -932,8 +932,8 @@ document.querySelector('.nav-cta')?.addEventListener('click', (e) => {
 // ── Cursor parallax (opposite direction) ────────────────────────────────────
 const mouse = { x: 0, y: 0 };
 const smoothMouse = { x: 0, y: 0 };
-const PARALLAX_STRENGTH = 0.4;
-const PARALLAX_SMOOTH = 0.05;
+const PARALLAX_STRENGTH = 1.0;
+const PARALLAX_SMOOTH = 0.02;
 
 window.addEventListener('mousemove', (e) => {
   mouse.x = (e.clientX / window.innerWidth - 0.5) * 2;   // -1 to 1
@@ -1016,9 +1016,12 @@ function animate() {
   cameraRig.rotation.y = cam.rotY;
   camera.position.z = -cam.zoom;
 
-  // Opposite offset — camera moves away from cursor
-  camera.rotation.y = -smoothMouse.x * PARALLAX_STRENGTH * 0.05;
-  camera.rotation.x = -smoothMouse.y * PARALLAX_STRENGTH * 0.05;
+  // Camera tumble — follows cursor, clamped to prevent losing content
+  const maxTiltX = 0.04; // ~2.5° vertical
+  const maxTiltY = 0.1;  // ~5.5° horizontal
+  camera.rotation.y = Math.max(-maxTiltY, Math.min(maxTiltY, -smoothMouse.x * 0.25));
+  camera.rotation.x = Math.max(-maxTiltX, Math.min(maxTiltX, -smoothMouse.y * 0.15));
+
 
   // Motion blur — stronger when camera is rotating
   const rotDelta = Math.abs(cam.rotY - prevRotY);
