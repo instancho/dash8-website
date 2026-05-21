@@ -8,7 +8,7 @@
 
 const DISPLAY_FONT = '"HouseSansComp", sans-serif';
 const GLYPH_FONT   = '"JetBrains Mono", ui-monospace, monospace';
-const BG           = '#0a0a0a';
+const BG           = '#1C48E8';
 const DOT_ALPHA    = 0.055;
 
 // ── Fixed config ──────────────────────────────────────────────────────────
@@ -601,6 +601,59 @@ function tick(tNow) {
     const tearH = 1 + (Math.random() * 3) | 0;
     ctx.fillStyle = `rgba(255,40,60,0.04)`;
     ctx.fillRect(0, tearY, W, tearH);
+  }
+
+  // ── Diagonal ASCII wave ──
+  if (!tick._waveState) {
+    tick._waveState = { active: false, nextWave: 3 + Math.random() * 2, pos: 0, alpha: 0 };
+  }
+  const wave = tick._waveState;
+  wave.nextWave -= dt;
+  if (!wave.active && wave.nextWave <= 0) {
+    wave.active = true;
+    wave.pos = -0.2;
+    wave.alpha = 0;
+    wave.speed = 0.3 + Math.random() * 0.2;
+    wave.dir = Math.random() > 0.5 ? 1 : -1; // left-to-right or right-to-left
+  }
+  if (wave.active) {
+    wave.pos += wave.speed * dt;
+    const bandWidth = 0.15;
+    // Fade in quickly, sustain, fade out
+    wave.alpha = wave.pos < 0 ? Math.max(0, 1 + wave.pos / 0.1)
+      : wave.pos > 1 ? Math.max(0, 1 - (wave.pos - 1) / 0.15) : 1;
+    wave.alpha *= 0.3;
+
+    ctx.font = `500 ${Math.max(4, Math.round(CELL * 0.78))}px ${GLYPH_FONT}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const waveChars = '01▓▒░█<>/\\|{}[]'.split('');
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        // Diagonal position: normalized 0-1 corner to corner
+        const diagPos = wave.dir > 0
+          ? (c / cols) * 0.5 + (r / rows) * 0.5
+          : (1 - c / cols) * 0.5 + (r / rows) * 0.5;
+        // Turbulence: offset the wave front per cell using noise
+        const turb = fastSin(c * 0.7 + r * 1.3 + t * 0.002) * 0.06
+                   + fastSin(r * 0.5 - c * 0.9 + t * 0.003) * 0.04;
+        const dist = Math.abs(diagPos + turb - wave.pos);
+        if (dist < bandWidth) {
+          const intensity = (1 - dist / bandWidth) * wave.alpha;
+          if (intensity > 0.01) {
+            const wx = c * CELL + CELL / 2;
+            const wy = r * CELL + CELL / 2;
+            const wch = waveChars[(c * 7 + r * 13 + (t * 0.01 | 0)) % waveChars.length];
+            ctx.fillStyle = `rgba(255,255,255,${intensity})`;
+            ctx.fillText(wch, wx, wy);
+          }
+        }
+      }
+    }
+    if (wave.pos > 1.2) {
+      wave.active = false;
+      wave.nextWave = 3 + Math.random() * 2; // 3-5s until next wave
+    }
   }
 
   // ── Ambient floating characters ──

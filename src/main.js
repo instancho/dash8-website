@@ -34,7 +34,7 @@ scene.background = new THREE.Color(0x000000);
 scene.fog = new THREE.FogExp2(0x000000, 0.03);
 
 // ── Starfield sky ───────────────────────────────────────────────────────────
-const STAR_COUNT = 1500;
+const STAR_COUNT = 800;
 const starGeo = new THREE.BufferGeometry();
 const starPositions = new Float32Array(STAR_COUNT * 3);
 const starColors = new Float32Array(STAR_COUNT * 3);
@@ -81,15 +81,15 @@ const cameraRig = new THREE.Object3D();
 scene.add(cameraRig);
 cameraRig.add(camera);
 
-const renderer = new THREE.WebGLRenderer({ canvas: threeCanvas, antialias: true });
+const renderer = new THREE.WebGLRenderer({ canvas: threeCanvas, antialias: false, powerPreference: 'high-performance' });
 renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
 
 // ── Screen config ──────────────────────────────────────────────────────────
 const RADIUS = 36;
 const SCREEN_H = 16;
 const ARC = 0.864;
-const SEGS = 64;
+const SEGS = 48;
 const MAX_ZOOM = 30;
 
 const SECTIONS = [
@@ -177,7 +177,7 @@ SECTIONS.forEach((sec) => {
     outerR, outerR, SCREEN_H, SEGS, 1, true,
     sec.theta - ARC / 2, ARC
   );
-  const embossMat = new THREE.MeshPhysicalMaterial({
+  const embossMat = new THREE.MeshStandardMaterial({
     color: 0x0a0e1a,
     side: THREE.BackSide,
     fog: false,
@@ -185,8 +185,6 @@ SECTIONS.forEach((sec) => {
     opacity: 0.4,
     roughness: 0.3,
     metalness: 0.6,
-    clearcoat: 0.5,
-    clearcoatRoughness: 0.2,
     envMapIntensity: 0.3,
     depthWrite: false,
   });
@@ -196,15 +194,8 @@ SECTIONS.forEach((sec) => {
   scene.add(embossMesh);
 
 
-
-  // ── Rim light behind each screen ──
-  const rimX = (RADIUS + 2) * Math.sin(sec.theta);
-  const rimZ = (RADIUS + 2) * Math.cos(sec.theta);
-  const rimLight = new THREE.PointLight(0x1C4FE8, 4, 20, 1.5);
-  rimLight.position.set(rimX, 0, rimZ);
-  scene.add(rimLight);
-
 });
+
 
 // ── Hero live texture — shows the actual canvas animation on the 3D screen ─
 const heroCanvasEl = document.getElementById('hero-canvas');
@@ -221,11 +212,15 @@ function initHeroTexture() {
   heroTexture.repeat.x = -1;
   heroTexture.offset.x = 1;
 
-  screenMeshes[0].material.map = heroTexture;
-  screenMeshes[0].material.emissiveMap = heroTexture;
-  screenMeshes[0].material.emissiveIntensity = 5.0;
-  screenMeshes[0].material.transmission = 0;
-  screenMeshes[0].material.needsUpdate = true;
+  // Swap hero to MeshBasicMaterial — unlit, shows exact canvas colors
+  screenMeshes[0].material.dispose();
+  const heroMat = new THREE.MeshBasicMaterial({
+    map: heroTexture,
+    side: THREE.DoubleSide,
+    fog: false,
+  });
+  heroMat.toneMapped = false;
+  screenMeshes[0].material = heroMat;
 }
 requestAnimationFrame(initHeroTexture);
 
@@ -235,6 +230,8 @@ new EXRLoader().load(
   (exrTexture) => {
     exrTexture.mapping = THREE.EquirectangularReflectionMapping;
     scene.environment = exrTexture;
+    scene.environmentIntensity = 1.35;
+    scene.environmentRotation = new THREE.Euler(0, 0, 0);
     console.log('HDRI loaded');
   },
   undefined,
@@ -246,41 +243,33 @@ renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.2;
 
 // Very low ambient — keeps edges dark
-const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
+const ambientLight = new THREE.AmbientLight(0xffffff, 4.5);
 scene.add(ambientLight);
 
 // Central spotlight pointing down — illuminates only the screen area
-const spotLight = new THREE.SpotLight(0xffffff, 80, 70, Math.PI / 2.5, 0.3, 0.8);
+const spotLight = new THREE.SpotLight(0xffffff, 240, 70, Math.PI / 2.5, 0.3, 0.8);
 spotLight.position.set(0, 15, 0);
 spotLight.target.position.set(0, -7.5, 0);
 scene.add(spotLight);
 scene.add(spotLight.target);
 
 // Direct point light above floor centre for extra illumination
-const floorLight = new THREE.PointLight(0xffffff, 25, 50, 0.8);
+const floorLight = new THREE.PointLight(0xffffff, 75, 50, 0.8);
 floorLight.position.set(0, -4, 0);
 scene.add(floorLight);
 
 // Point light that follows camera — illuminates the active screen area
-const screenLight = new THREE.PointLight(0xccddff, 5, 35, 1.5);
+const screenLight = new THREE.PointLight(0xccddff, 15, 35, 1.5);
 screenLight.position.set(0, 4, -RADIUS * 0.5);
 cameraRig.add(screenLight);
 
 // Camera headlight — points where the camera looks
-const camLight = new THREE.SpotLight(0xffffff, 40, 60, Math.PI / 4, 0.6, 1.2);
+const camLight = new THREE.SpotLight(0xffffff, 120, 60, Math.PI / 4, 0.6, 1.2);
 camLight.position.set(0, -1, 0);
 camera.add(camLight);
 camera.add(camLight.target);
 camLight.target.position.set(0, -8, -2);
 
-// Subtle blue accent lights near screen bases
-SECTIONS.forEach((sec) => {
-  const px = RADIUS * 0.5 * Math.sin(sec.theta);
-  const pz = RADIUS * 0.5 * Math.cos(sec.theta);
-  const pl = new THREE.PointLight(0x1C4FE8, 0.3, 20, 2);
-  pl.position.set(px, -5, pz);
-  scene.add(pl);
-});
 
 // ── Central platform ────────────────────────────────────────────────────────
 const platformGroup = new THREE.Group();
@@ -289,13 +278,11 @@ scene.add(platformGroup);
 
 // Main disc
 const platformGeo = new THREE.CylinderGeometry(6, 6.5, 0.3, 64);
-const platformMat = new THREE.MeshPhysicalMaterial({
+const platformMat = new THREE.MeshStandardMaterial({
   color: 0x111118,
   metalness: 0.8,
   roughness: 0.3,
   envMapIntensity: 0.5,
-  clearcoat: 0.3,
-  clearcoatRoughness: 0.4,
 });
 const platformMesh = new THREE.Mesh(platformGeo, platformMat);
 platformMesh.name = 'platform_disc';
@@ -320,6 +307,7 @@ innerRing.position.y = 0.17;
 platformGroup.add(innerRing);
 
 // ── Floor cables (lines from screens to center) ─────────────────────────────
+const cableDots = [];
 SECTIONS.forEach((sec) => {
   const screenX = RADIUS * 0.95 * Math.sin(sec.theta);
   const screenZ = RADIUS * 0.95 * Math.cos(sec.theta);
@@ -352,7 +340,9 @@ SECTIONS.forEach((sec) => {
   dot.position.y = -5.8;
   scene.add(dot);
   dot.userData = { curve: cableCurve, phase: Math.random(), speed: 0.002 + Math.random() * 0.003 };
+  cableDots.push(dot);
 });
+
 
 // ── Floating holographic UI fragments ───────────────────────────────────────
 function createHoloTex() {
@@ -380,7 +370,7 @@ function createHoloTex() {
   return tex;
 }
 
-const HOLO_COUNT = 12;
+const HOLO_COUNT = 8;
 const holoTex = createHoloTex();
 const holoFragments = [];
 
@@ -459,7 +449,7 @@ scene.add(embers);
 
 
 // ── Floating particles ──────────────────────────────────────────────────────
-const PARTICLE_COUNT = 400;
+const PARTICLE_COUNT = 200;
 const particleGeo = new THREE.BufferGeometry();
 const particlePositions = new Float32Array(PARTICLE_COUNT * 3);
 const particleSpeeds = new Float32Array(PARTICLE_COUNT);
@@ -491,9 +481,9 @@ composer.addPass(new RenderPass(scene, camera));
 // Bloom — makes bright areas glow (screens, lights)
 const bloomPass = new UnrealBloomPass(
   new THREE.Vector2(window.innerWidth, window.innerHeight),
-  0.13,  // strength
-  0.26,  // radius
-  0.9    // threshold
+  0.08,  // strength
+  0.2,   // radius
+  0.95   // threshold
 );
 composer.addPass(bloomPass);
 
@@ -508,7 +498,7 @@ const vignetteShader = {
   uniforms: {
     tDiffuse: { value: null },
     offset:   { value: 1.0 },
-    darkness: { value: 1.2 },
+    darkness: { value: 1.6 },
   },
   vertexShader: `
     varying vec2 vUv;
@@ -599,6 +589,37 @@ const filmGrainShader = {
 };
 const filmGrainPass = new ShaderPass(filmGrainShader);
 composer.addPass(filmGrainPass);
+
+// Color grading — subtle cinematic teal shadows / warm highlights
+const colorGradeShader = {
+  uniforms: {
+    tDiffuse: { value: null },
+    uIntensity: { value: 0.12 },
+  },
+  vertexShader: `
+    varying vec2 vUv;
+    void main() {
+      vUv = uv;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `,
+  fragmentShader: `
+    uniform sampler2D tDiffuse;
+    uniform float uIntensity;
+    varying vec2 vUv;
+    void main() {
+      vec4 texel = texture2D(tDiffuse, vUv);
+      float lum = dot(texel.rgb, vec3(0.299, 0.587, 0.114));
+      vec3 shadows = vec3(0.0, 0.05, 0.1);
+      vec3 highlights = vec3(0.08, 0.04, 0.0);
+      vec3 grade = mix(shadows, highlights, lum);
+      texel.rgb += grade * uIntensity;
+      texel.rgb = mix(vec3(lum), texel.rgb, 1.08);
+      gl_FragColor = texel;
+    }
+  `,
+};
+composer.addPass(new ShaderPass(colorGradeShader));
 
 // Output pass — applies tone mapping + color space conversion
 composer.addPass(new OutputPass());
@@ -742,8 +763,8 @@ const floorMaterial = new THREE.MeshPhysicalMaterial({
 // Reflector underneath — captures real screen content
 const reflectorGeo = new THREE.PlaneGeometry(120, 120);
 const reflector = new Reflector(reflectorGeo, {
-  textureWidth: window.innerWidth * 0.25,
-  textureHeight: window.innerHeight * 0.25,
+  textureWidth: 512,
+  textureHeight: 512,
   color: 0x666677,
   recursion: 0,
 });
@@ -952,6 +973,7 @@ const glitchState = screenMeshes.map(() => ({
 
 function updateGlitches(dt) {
   glitchState.forEach((g, i) => {
+    if (i === 0) return; // hero uses MeshBasicMaterial
     const mat = screenMeshes[i].material;
     g.nextGlitch -= dt;
 
@@ -989,7 +1011,7 @@ function updateGlitches(dt) {
             mat.emissiveMap.offset.y = g.origOffsetY;
           }
         }
-        mat.emissiveIntensity = (i === 0 && heroTexture) ? 5.0 : 2.0;
+        mat.emissiveIntensity = 2.0; // non-hero screens only
         mat.emissive.setRGB(1, 1, 1);
       }
     }
@@ -1014,6 +1036,7 @@ function animate() {
   smoothMouse.y += (mouse.y - smoothMouse.y) * PARALLAX_SMOOTH;
 
   cameraRig.rotation.y = cam.rotY;
+  camera.position.y = 2;
   camera.position.z = -cam.zoom;
 
   // Camera tumble — follows cursor, clamped to prevent losing content
@@ -1035,17 +1058,20 @@ function animate() {
   // Slowly rotate starfield
   stars.rotation.y += 0.00008;
 
+  // Rotate HDRI environment for dynamic reflections
+  if (scene.environmentRotation) {
+    scene.environmentRotation.y += 0.0003;
+  }
+
   // Rotate inner platform ring
   innerRing.rotation.z += 0.002;
 
   // Animate cable pulse dots
-  scene.children.forEach((child) => {
-    if (child.userData && child.userData.curve) {
-      child.userData.phase = (child.userData.phase + child.userData.speed) % 1;
-      const pt = child.userData.curve.getPoint(child.userData.phase);
-      child.position.x = pt.x;
-      child.position.z = pt.z;
-    }
+  cableDots.forEach((dot) => {
+    dot.userData.phase = (dot.userData.phase + dot.userData.speed) % 1;
+    const pt = dot.userData.curve.getPoint(dot.userData.phase);
+    dot.position.x = pt.x;
+    dot.position.z = pt.z;
   });
 
   // Animate holographic UI fragments — orbit + bob
@@ -1061,9 +1087,9 @@ function animate() {
   // Animate ember particles — drift upward, respawn at base
   const emberPos = emberGeo.attributes.position;
   for (let i = 0; i < EMBER_COUNT; i++) {
-    emberPos.array[i * 3]     += emberVelocities[i * 3];
+    emberPos.array[i * 3]     += emberVelocities[i * 3] + smoothMouse.x * 0.003;
     emberPos.array[i * 3 + 1] += emberVelocities[i * 3 + 1];
-    emberPos.array[i * 3 + 2] += emberVelocities[i * 3 + 2];
+    emberPos.array[i * 3 + 2] += emberVelocities[i * 3 + 2] + smoothMouse.y * 0.002;
     if (emberPos.array[i * 3 + 1] > 5) {
       const sec = SECTIONS[Math.floor(Math.random() * SECTIONS.length)];
       const spread = (Math.random() - 0.5) * 6;
@@ -1080,13 +1106,31 @@ function animate() {
   // Update film grain time
   filmGrainPass.uniforms.uTime.value = performance.now() * 0.001;
 
-  // Animate floating particles — slow upward drift
+  // Screen idle breathing — subtle emissive pulse
+  const breathe = Math.sin(now * 0.001) * 0.15;
+  screenMeshes.forEach((m, i) => {
+    if (i === 0) return; // hero uses MeshBasicMaterial
+    if (!glitchState[i].active) {
+      const base = 2.0;
+      m.material.emissiveIntensity = base + breathe;
+    }
+  });
+
+  // Animate floating particles — drift upward + react to camera movement
+  const camDelta = Math.abs(smoothMouse.x) + Math.abs(smoothMouse.y);
   const pos = particleGeo.attributes.position;
   for (let i = 0; i < PARTICLE_COUNT; i++) {
     pos.array[i * 3 + 1] += particleSpeeds[i];
-    if (pos.array[i * 3 + 1] > 10) pos.array[i * 3 + 1] = -10;
+    pos.array[i * 3] += smoothMouse.x * particleSpeeds[i] * 0.8;
+    pos.array[i * 3 + 2] += smoothMouse.y * particleSpeeds[i] * 0.5;
+    if (pos.array[i * 3 + 1] > 10) {
+      pos.array[i * 3 + 1] = -10;
+      pos.array[i * 3]     = (Math.random() - 0.5) * 60;
+      pos.array[i * 3 + 2] = (Math.random() - 0.5) * 60;
+    }
   }
   pos.needsUpdate = true;
+  particleMat.opacity = 0.4 + camDelta * 0.3;
 
   updateOverlays();
   stats.begin();

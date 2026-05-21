@@ -185,17 +185,17 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--bg);
+  background: #1C48E8;
   z-index: 10;
   font-size: 11px;
   letter-spacing: 0.2em;
-  color: var(--dim);
+  color: rgba(255,255,255,0.6);
   text-transform: uppercase;
   transition: opacity 0.4s;
   pointer-events: none;
 }
 .hero-loader.hidden { opacity: 0; }
-.hero-loader::before { content: ':/'; color: var(--accent); margin-right: 10px; }
+.hero-loader::before { content: ':/'; color: #fff; margin-right: 10px; }
 
 /* ── Global CRT + grain (shared across all sections) ─────── */
 .ascii-crt {
