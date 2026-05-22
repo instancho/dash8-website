@@ -132,6 +132,7 @@ function createScreenTexture(label, title) {
 
 // ── Build screen meshes ────────────────────────────────────────────────────
 const screenMeshes = [];
+const screenGroups = [];
 let heroTexture = null;
 
 SECTIONS.forEach((sec) => {
@@ -167,7 +168,6 @@ SECTIONS.forEach((sec) => {
   const mesh = new THREE.Mesh(geo, mat);
   mesh.name = `screen_${sec.id}`;
   mesh.position.y = 3;
-  scene.add(mesh);
   screenMeshes.push(mesh);
 
   // ── Screen emboss (outer shell for visible thickness) ──
@@ -191,7 +191,14 @@ SECTIONS.forEach((sec) => {
   const embossMesh = new THREE.Mesh(embossGeo, embossMat);
   embossMesh.name = `emboss_${sec.id}`;
   embossMesh.position.y = 3;
-  scene.add(embossMesh);
+
+  // Group screen + emboss so they float together
+  const group = new THREE.Group();
+  group.name = `screenGroup_${sec.id}`;
+  group.add(mesh);
+  group.add(embossMesh);
+  scene.add(group);
+  screenGroups.push(group);
 
 
 });
@@ -954,7 +961,7 @@ document.querySelector('.nav-cta')?.addEventListener('click', (e) => {
 const mouse = { x: 0, y: 0 };
 const smoothMouse = { x: 0, y: 0 };
 const PARALLAX_STRENGTH = 1.0;
-const PARALLAX_SMOOTH = 0.02;
+const PARALLAX_SMOOTH = 0.008;
 
 window.addEventListener('mousemove', (e) => {
   mouse.x = (e.clientX / window.innerWidth - 0.5) * 2;   // -1 to 1
@@ -1041,9 +1048,9 @@ function animate() {
 
   // Camera tumble — follows cursor, clamped to prevent losing content
   const maxTiltX = 0.04; // ~2.5° vertical
-  const maxTiltY = 0.1;  // ~5.5° horizontal
-  camera.rotation.y = Math.max(-maxTiltY, Math.min(maxTiltY, -smoothMouse.x * 0.25));
-  camera.rotation.x = Math.max(-maxTiltX, Math.min(maxTiltX, -smoothMouse.y * 0.15));
+  const maxTiltY = 0.06;  // ~3.4° horizontal
+  camera.rotation.y = Math.max(-maxTiltY, Math.min(maxTiltY, smoothMouse.x * 0.25));
+  camera.rotation.x = Math.max(-maxTiltX, Math.min(maxTiltX, smoothMouse.y * 0.15));
 
 
   // Motion blur — stronger when camera is rotating
@@ -1114,6 +1121,13 @@ function animate() {
       const base = 2.0;
       m.material.emissiveIntensity = base + breathe;
     }
+  });
+
+  // Screen floating — each screen bobs gently at its own phase
+  screenGroups.forEach((g, i) => {
+    const phase = i * 1.57; // quarter-π offset per screen
+    g.position.y = Math.sin(now * 0.0006 + phase) * 0.12;
+    g.position.x = Math.sin(now * 0.0004 + phase * 1.3) * 0.03;
   });
 
   // Animate floating particles — drift upward + react to camera movement

@@ -41,6 +41,7 @@ body {
 
 /* ── Navbar ───────────────────────────────────────────────── */
 #navbar {
+  display: none !important;
   position: fixed;
   bottom: max(var(--nav-bottom), env(safe-area-inset-bottom));
   left: 50%;
