@@ -106,6 +106,35 @@
     return [180, 40, 255];
   }
 
+  // ── Background ASCII matrix ─────────────────────────────────────────────────
+  const BG_CHARS   = '01ABCDEFGHIJKLMNOPQRSTUVWXYZ.:+*#@!~=-<>{}[]|/\\0184729563RTXY';
+  const BG_GLITCH  = '▓▒░█▄▀■□▪▫◆◇';
+  const BG_CELL    = 10;
+  let bgCols, bgRows, bgGrid, bgColors;
+
+  // Pre-built palette of vivid matrix colors
+  const BG_PALETTE = [
+    [255,255,255], [180,40,255], [70,60,220], [50,120,255],
+    [40,210,200],  [60,220,80],  [230,240,50],[255,180,30],
+    [255,60,40],   [150,60,120], [60,100,200],[200,210,225],
+  ];
+
+  let bgGlitchRows = [], bgGlitchTimer = 0, bgGlitchActive = false, bgGlitchNextAt = 0.5;
+  let _bgSeed = 12345;
+  function bgRand() { _bgSeed = (_bgSeed * 16807) % 2147483647; return _bgSeed / 2147483647; }
+
+  function resizeBg() {
+    bgCols = Math.ceil(W / BG_CELL);
+    bgRows = Math.ceil(H / BG_CELL);
+    const total = bgCols * bgRows;
+    bgGrid   = new Uint8Array(total);
+    bgColors = new Uint8Array(total);
+    for (let i = 0; i < total; i++) {
+      bgGrid[i]   = (Math.random() * BG_CHARS.length) | 0;
+      bgColors[i] = (Math.random() * BG_PALETTE.length) | 0;
+    }
+  }
+
   function resize() {
     DPR = Math.min(window.devicePixelRatio || 1, 2);
     W = canvas.clientWidth;
@@ -117,35 +146,6 @@
     cy = H / 2;
     resizeBg();
   }
-
-  // ── Background video ASCII ──────────────────────────────────────────────────
-  const BG_CHARS = ' .:-=+*#%@';
-  const BG_CELL  = 8;
-  const bgVid = document.createElement('video');
-  bgVid.src = '/Assets/preloader.mp4';
-  bgVid.muted = true;
-  bgVid.playsInline = true;
-  bgVid.preload = 'auto';
-  bgVid.style.cssText = 'position:fixed;opacity:0;pointer-events:none;width:1px;height:1px;z-index:-1';
-  document.body.appendChild(bgVid);
-
-  const bgSampler = document.createElement('canvas');
-  const bgSampCtx = bgSampler.getContext('2d', { willReadFrequently: true });
-  let bgCols, bgRows, bgReady = false;
-
-  function resizeBg() {
-    bgCols = Math.ceil(W / BG_CELL);
-    bgRows = Math.ceil(H / BG_CELL);
-    bgSampler.width = bgCols;
-    bgSampler.height = bgRows;
-  }
-
-  bgVid.addEventListener('canplaythrough', () => {
-    bgVid.playbackRate = 0.75;
-    bgVid.play().catch(() => {});
-    bgReady = true;
-  });
-  bgVid.load();
 
   // ── Logo ────────────────────────────────────────────────────────────────────
   let logoReady = false;
@@ -178,40 +178,84 @@
     const fillT = Math.min(1, elapsed / FILL_DURATION);
     const fillEased = fillT * fillT * (3 - 2 * fillT);
 
-    // ── Background ASCII video layer ─────────────────────────────────────────
-    if (bgReady && bgVid.readyState >= 2 && bgCols && bgRows) {
-      const vw = bgVid.videoWidth, vh = bgVid.videoHeight;
-      if (vw && vh) {
-        const vidAspect = vw / vh;
-        const canAspect = bgCols / bgRows;
-        let sx, sy, sw, sh;
-        if (vidAspect > canAspect) {
-          sh = vh; sw = vh * canAspect; sx = (vw - sw) / 2; sy = 0;
-        } else {
-          sw = vw; sh = vw / canAspect; sx = 0; sy = (vh - sh) / 2;
-        }
-        bgSampCtx.drawImage(bgVid, sx, sy, sw, sh, 0, 0, bgCols, bgRows);
-        const data = bgSampCtx.getImageData(0, 0, bgCols, bgRows).data;
+    // ── Background ASCII matrix with chaos + glitch ──────────────────────────
+    if (bgCols && bgRows) {
+      const dt = Math.min(0.05, 1/60);
+      const bgAlpha = 0.12 + fillEased * 0.22;
 
-        ctx.font = (BG_CELL - 1) + 'px "JetBrains Mono", monospace';
-        ctx.textBaseline = 'top';
-
-        const bgAlpha = 0.30 + fillEased * 0.50;
-
-        let lastBgStyle = '';
-        for (let r = 0; r < bgRows; r++) {
-          for (let c = 0; c < bgCols; c++) {
-            const off = (r * bgCols + c) * 4;
-            const pr = data[off], pg = data[off + 1], pb = data[off + 2];
-            const br = (pr * 77 + pg * 150 + pb * 29) >> 8;
-            const ci = Math.min(BG_CHARS.length - 1, (br * BG_CHARS.length) >> 8);
-            const ch = BG_CHARS[ci];
-            if (ch === ' ') continue;
-            const a = (0.4 + (br / 255) * 0.6) * bgAlpha;
-            const style = 'rgba(' + pr + ',' + pg + ',' + pb + ',' + a.toFixed(2) + ')';
-            if (style !== lastBgStyle) { ctx.fillStyle = style; lastBgStyle = style; }
-            ctx.fillText(ch, c * BG_CELL, r * BG_CELL);
+      // Glitch tear system
+      bgGlitchTimer += dt;
+      if (!bgGlitchActive && bgGlitchTimer >= bgGlitchNextAt) {
+        bgGlitchActive = true;
+        bgGlitchRows.length = 0;
+        const count = 3 + (Math.random() * 6) | 0;
+        for (let g = 0; g < count; g++) {
+          const startRow = (Math.random() * bgRows) | 0;
+          const h = 1 + (Math.random() * 4) | 0;
+          for (let hh = 0; hh < h; hh++) {
+            bgGlitchRows.push({
+              row: startRow + hh,
+              shift: (Math.random() - 0.5) * BG_CELL * 4,
+              duration: 0.04 + Math.random() * 0.1,
+              elapsed: 0,
+            });
           }
+        }
+      }
+
+      const rowShifts = new Float32Array(bgRows);
+      if (bgGlitchActive) {
+        let allDone = true;
+        _bgSeed = (elapsed * 1000) | 0;
+        for (let g = 0; g < bgGlitchRows.length; g++) {
+          const gr = bgGlitchRows[g];
+          gr.elapsed += dt;
+          if (gr.elapsed < gr.duration && gr.row < bgRows) {
+            allDone = false;
+            rowShifts[gr.row] = gr.shift;
+          }
+        }
+        if (allDone) {
+          bgGlitchActive = false;
+          bgGlitchTimer = 0;
+          bgGlitchNextAt = 0.3 + Math.random() * 0.8;
+        }
+      }
+
+      // Shuffle characters — more chaos as ring fills
+      const shuffleRate = 0.01 + fillEased * 0.06;
+      const colorShift = 0.003 + fillEased * 0.015;
+      const total = bgCols * bgRows;
+      for (let i = 0; i < total; i++) {
+        if (Math.random() < shuffleRate) bgGrid[i] = (Math.random() * BG_CHARS.length) | 0;
+        if (Math.random() < colorShift)  bgColors[i] = (Math.random() * BG_PALETTE.length) | 0;
+      }
+
+      ctx.font = (BG_CELL - 1) + 'px "JetBrains Mono", monospace';
+      ctx.textBaseline = 'top';
+      let lastStyle = '';
+
+      for (let r = 0; r < bgRows; r++) {
+        const xShift = rowShifts[r];
+        const isGlitch = xShift !== 0;
+        const rOff = r * bgCols;
+
+        for (let c = 0; c < bgCols; c++) {
+          const i = rOff + c;
+          let ch;
+          if (isGlitch && bgRand() < 0.4) {
+            ch = BG_GLITCH[(bgRand() * BG_GLITCH.length) | 0];
+          } else {
+            ch = BG_CHARS[bgGrid[i] % BG_CHARS.length];
+          }
+
+          const [pr, pg, pb] = BG_PALETTE[bgColors[i]];
+          const brightness = isGlitch ? 1.0 : 0.3 + bgRand() * 0.7;
+          const a = brightness * bgAlpha * (isGlitch ? 1.6 : 1);
+
+          const style = 'rgba(' + pr + ',' + pg + ',' + pb + ',' + Math.min(1, a).toFixed(2) + ')';
+          if (style !== lastStyle) { ctx.fillStyle = style; lastStyle = style; }
+          ctx.fillText(ch, c * BG_CELL + xShift, r * BG_CELL);
         }
       }
     }
