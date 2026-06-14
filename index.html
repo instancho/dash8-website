@@ -20,6 +20,11 @@
 </head>
 <body>
 
+  <!-- ── Preloader ─────────────────────────────────────── -->
+  <div id="preloader">
+    <canvas id="preloader-canvas"></canvas>
+  </div>
+
   <!-- ── Three.js 3D scene (background layer) ──────────── -->
   <canvas id="three-canvas"></canvas>
 
@@ -32,50 +37,127 @@
   </section>
 
   <section id="about" class="content-overlay">
-    <div class="section-placeholder">
-      <span class="section-label">://02</span>
-      <h2>ABOUT</h2>
-      <p>Content goes here</p>
+    <div class="about-services">
+      <canvas id="about-ascii-canvas"></canvas>
+      <div class="service-card" data-service="0">
+        <span class="service-index">01</span>
+        <h2 class="service-title">BRANDING</h2>
+        <p class="service-desc">Visual identity systems that cut through noise</p>
+      </div>
+      <div class="service-card" data-service="1">
+        <span class="service-index">02</span>
+        <h2 class="service-title">WEB DESIGN</h2>
+        <p class="service-desc">Immersive digital experiences built to perform</p>
+      </div>
+      <div class="service-card" data-service="2">
+        <span class="service-index">03</span>
+        <h2 class="service-title">DEVELOPMENT</h2>
+        <p class="service-desc">Engineered front-ends with cinematic precision</p>
+      </div>
+      <div class="service-card" data-service="3">
+        <span class="service-index">04</span>
+        <h2 class="service-title">STRATEGY</h2>
+        <p class="service-desc">Creative direction aligned with business goals</p>
+      </div>
+      <button class="service-nav service-nav--prev" id="service-prev" aria-label="Previous service">
+        <img src="/About Us/Frame 58.png" alt="Previous" />
+      </button>
+      <button class="service-nav service-nav--next" id="service-next" aria-label="Next service">
+        <img src="/About Us/Frame 58.png" alt="Next" />
+      </button>
     </div>
   </section>
 
   <section id="projects" class="content-overlay">
-    <div class="section-placeholder">
-      <span class="section-label">://03</span>
-      <h2>PROJECTS</h2>
-      <p>Content goes here</p>
+    <canvas id="projects-canvas"></canvas>
+    <div class="ascii-crt"></div>
+    <div class="ascii-grain"></div>
+    <div class="projects-grid-wrap" id="projects-grid-wrap">
+      <div class="projects-grid" id="projects-grid"></div>
     </div>
   </section>
 
   <section id="contact" class="content-overlay">
-    <div class="section-placeholder">
-      <span class="section-label">://04</span>
-      <h2>CONTACT</h2>
-      <p>Content goes here</p>
+    <div class="contact-scene">
+      <canvas id="contact-ascii-canvas"></canvas>
+      <div class="ascii-crt"></div>
+      <div class="ascii-grain"></div>
+      <div class="contact-links">
+        <div class="enquiry-wrap">
+          <a class="contact-link contact-link--white" href="#" data-text="Submit an Enquiry">Submit an Enquiry</a>
+          <div class="enquiry-form-panel">
+            <form class="enquiry-form" id="enquiry-form">
+              <div class="enquiry-field">
+                <input type="text" name="name" placeholder="NAME" autocomplete="off" />
+              </div>
+              <div class="enquiry-field">
+                <input type="email" name="email" placeholder="EMAIL" autocomplete="off" />
+              </div>
+              <div class="enquiry-field">
+                <input type="text" name="company" placeholder="COMPANY" autocomplete="off" />
+              </div>
+              <div class="enquiry-field">
+                <input type="text" name="message" placeholder="YOUR MESSAGE" autocomplete="off" />
+              </div>
+              <button type="submit" class="enquiry-submit">SUBMIT</button>
+            </form>
+          </div>
+        </div>
+        <a class="contact-link contact-link--blue" href="mailto:hello@dash8studio.com" data-text="hello@dash8studio.com">hello@dash8studio.com</a>
+        <a class="contact-link contact-link--cyan" href="https://www.linkedin.com/in/vaibhav-design/" target="_blank" rel="noopener" data-text="linkedin">linkedin</a>
+      </div>
+      <button class="contact-btn" id="contact-btn" data-text="BOOK A CALL">BOOK A CALL</button>
     </div>
   </section>
 
+  <!-- ── SVG clip path for project cards (folder-tab shape) ── -->
+  <svg width="0" height="0" style="position:absolute">
+    <defs>
+      <clipPath id="card-clip" clipPathUnits="objectBoundingBox">
+        <path d="
+          M 0.042,0
+          L 0.345,0
+          Q 0.387,0 0.387,0.058
+          L 0.387,0.067
+          Q 0.387,0.125 0.429,0.125
+          L 0.958,0.125
+          Q 1,0.125 1,0.183
+          L 1,0.942
+          Q 1,1 0.958,1
+          L 0.042,1
+          Q 0,1 0,0.942
+          L 0,0.058
+          Q 0,0 0.042,0
+          Z
+        "/>
+      </clipPath>
+    </defs>
+  </svg>
+
+  <!-- ── Bottom gradient for navbar readability ────────── -->
+  <div id="bottom-fade"></div>
+
   <!-- ── Navbar ────────────────────────────────────────── -->
   <nav id="navbar">
-    <div class="nav-inner">
-      <a class="nav-logo" href="#">
-        <img src="Assets/Logo.svg" alt="Dash8" class="nav-logo-img" />
-      </a>
-      <div class="nav-links">
-        <a class="nav-link" href="#hero"     data-text="HOME"     data-section="hero">HOME</a>
-        <a class="nav-link" href="#about"    data-text="ABOUT"    data-section="about">ABOUT</a>
-        <a class="nav-link" href="#projects" data-text="PROJECTS" data-section="projects">PROJECTS</a>
-        <a class="nav-link" href="#contact"  data-text="CONTACT"  data-section="contact">CONTACT</a>
-      </div>
-      <a class="nav-cta" href="#contact" data-text="BOOK A CALL">BOOK A CALL</a>
+    <div class="nav-labels-row" id="navLabels">
+      <a class="nav-link active" href="#hero"     data-text="HOME"     data-section="hero">HOME</a>
+      <a class="nav-link"        href="#about"    data-text="ABOUT"    data-section="about">ABOUT</a>
+      <a class="nav-link"        href="#projects" data-text="PROJECTS" data-section="projects">PROJECTS</a>
+      <a class="nav-cta"         href="#contact"  data-text="BOOK A CALL">BOOK A CALL</a>
     </div>
-    <div class="nav-progress" id="navProgress"></div>
+    <canvas id="navRuler"></canvas>
   </nav>
 
   <!-- ── Scroll spacer (creates scroll height for camera rotation) ── -->
   <div id="scroll-spacer"></div>
 
+  <script src="js/preloader.js"></script>
+  <script src="js/projects-data.js"></script>
+  <script src="js/projects-grid.js"></script>
+  <script src="js/contact-hands.js"></script>
+  <script src="js/about-services.js"></script>
   <script src="js/char-cloud.js"></script>
+  <script src="js/projects-bg.js"></script>
   <script src="js/navbar.js"></script>
   <script type="module" src="src/main.js"></script>
 </body>

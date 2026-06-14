@@ -744,6 +744,23 @@ if (window.visualViewport) window.visualViewport.addEventListener('resize', sche
 
 // ── Boot ──────────────────────────────────────────────────────────────────
 (async function boot() {
+  // Pre-init: size canvas and paint the background immediately, before font loading.
+  // This ensures the Three.js CanvasTexture sees a properly-sized, non-blank canvas
+  // right away rather than the HTML default 300×150 placeholder.
+  {
+    const hero = canvas.parentElement;
+    DPR = Math.min(window.devicePixelRatio || 1, 2);
+    W = hero.clientWidth  || window.innerWidth;
+    H = hero.clientHeight || window.innerHeight;
+    canvas.width  = Math.round(W * DPR);
+    canvas.height = Math.round(H * DPR);
+    canvas.style.width  = W + 'px';
+    canvas.style.height = H + 'px';
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    ctx.fillStyle = BG;
+    ctx.fillRect(0, 0, W, H);
+  }
+
   try {
     if (document.fonts?.load) {
       const fontTimeout = new Promise(r => setTimeout(r, 3000));
@@ -776,5 +793,8 @@ if (window.visualViewport) window.visualViewport.addEventListener('resize', sche
   if (!heroEl || heroEl.classList.contains('active')) {
     requestAnimationFrame((t) => { tPrev = t; heroRafId = requestAnimationFrame(tick); });
   }
-  requestAnimationFrame(() => loader.classList.add('hidden'));
+  requestAnimationFrame(() => {
+    loader.classList.add('hidden');
+    if (window.preloaderDone) window.preloaderDone('hero');
+  });
 })();

@@ -2,8 +2,6 @@ import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import Lenis from 'lenis';
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
@@ -16,8 +14,9 @@ import { Reflector } from 'three/examples/jsm/objects/Reflector.js';
 
 gsap.registerPlugin(ScrollTrigger);
 
-// ── Performance monitor (remove later) ──────────────────────────────────────
+// ── Performance monitor (FPS counter, top-right) ────────────────────────────
 const stats = new Stats();
+stats.showPanel(0); // 0 = FPS
 stats.dom.style.cssText = 'position:fixed;top:0;right:0;left:auto;z-index:9999;';
 document.body.appendChild(stats.dom);
 
@@ -31,7 +30,7 @@ gsap.ticker.lagSmoothing(0);
 const threeCanvas = document.getElementById('three-canvas');
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x000000);
-scene.fog = new THREE.FogExp2(0x000000, 0.03);
+scene.fog = new THREE.FogExp2(0x000000, 0.045);
 
 // ── Starfield sky ───────────────────────────────────────────────────────────
 const STAR_COUNT = 800;
@@ -208,7 +207,10 @@ SECTIONS.forEach((sec) => {
 const heroCanvasEl = document.getElementById('hero-canvas');
 
 function initHeroTexture() {
-  if (!heroCanvasEl || heroCanvasEl.width === 0) {
+  // Wait until char-cloud.js pre-init has sized the canvas to the viewport.
+  // The HTML default is 300px wide — reject that and keep polling.
+  const minWidth = Math.round(window.innerWidth * (window.devicePixelRatio || 1) * 0.5);
+  if (!heroCanvasEl || heroCanvasEl.width < minWidth) {
     requestAnimationFrame(initHeroTexture);
     return;
   }
@@ -231,18 +233,105 @@ function initHeroTexture() {
 }
 requestAnimationFrame(initHeroTexture);
 
+// ── Projects live texture — maps the projects-bg.js canvas onto the 3D screen ─
+const projectsCanvasEl = document.getElementById('projects-canvas');
+let projectsTexture = null;
+
+function initProjectsTexture() {
+  const minWidth = Math.round(window.innerWidth * (window.devicePixelRatio || 1) * 0.5);
+  if (!projectsCanvasEl || projectsCanvasEl.width < minWidth) {
+    requestAnimationFrame(initProjectsTexture);
+    return;
+  }
+  projectsTexture = new THREE.CanvasTexture(projectsCanvasEl);
+  projectsTexture.colorSpace = THREE.SRGBColorSpace;
+  projectsTexture.wrapS = THREE.RepeatWrapping;
+  projectsTexture.repeat.x = -1;
+  projectsTexture.offset.x = 1;
+
+  // Swap to MeshBasicMaterial — unlit, bypasses ACES tone mapping and color grade
+  screenMeshes[2].material.dispose();
+  const projectsMat = new THREE.MeshBasicMaterial({
+    map: projectsTexture,
+    side: THREE.DoubleSide,
+    fog: false,
+  });
+  projectsMat.toneMapped = false;
+  screenMeshes[2].material = projectsMat;
+}
+requestAnimationFrame(initProjectsTexture);
+
+// ── About live texture — maps the about ASCII canvas onto the 3D screen ───
+const aboutCanvasEl = document.getElementById('about-ascii-canvas');
+let aboutTexture = null;
+
+function initAboutTexture() {
+  if (!aboutCanvasEl || aboutCanvasEl.width < 2) {
+    requestAnimationFrame(initAboutTexture);
+    return;
+  }
+  aboutTexture = new THREE.CanvasTexture(aboutCanvasEl);
+  aboutTexture.colorSpace = THREE.SRGBColorSpace;
+  aboutTexture.wrapS = THREE.RepeatWrapping;
+  aboutTexture.repeat.x = -1;
+  aboutTexture.offset.x = 1;
+
+  screenMeshes[1].material.dispose();
+  const aboutMat = new THREE.MeshBasicMaterial({
+    map: aboutTexture,
+    side: THREE.DoubleSide,
+    fog: false,
+  });
+  aboutMat.toneMapped = false;
+  screenMeshes[1].material = aboutMat;
+}
+requestAnimationFrame(initAboutTexture);
+
+// ── Contact live texture — maps the contact ASCII canvas onto the 3D screen ─
+const contactCanvasEl = document.getElementById('contact-ascii-canvas');
+let contactTexture = null;
+
+function initContactTexture() {
+  if (!contactCanvasEl || contactCanvasEl.width < 2) {
+    requestAnimationFrame(initContactTexture);
+    return;
+  }
+  contactTexture = new THREE.CanvasTexture(contactCanvasEl);
+  contactTexture.colorSpace = THREE.SRGBColorSpace;
+  contactTexture.wrapS = THREE.RepeatWrapping;
+  contactTexture.repeat.x = -1;
+  contactTexture.offset.x = 1;
+
+  screenMeshes[3].material.dispose();
+  const contactMat = new THREE.MeshBasicMaterial({
+    map: contactTexture,
+    side: THREE.DoubleSide,
+    fog: false,
+  });
+  contactMat.toneMapped = false;
+  screenMeshes[3].material = contactMat;
+}
+requestAnimationFrame(initContactTexture);
+
 // ── HDRI environment ───────────────────────────────────────────────────────
 new EXRLoader().load(
   '/Assets/textures/NightEnvironmentHDRI007_2K_HDR.exr',
   (exrTexture) => {
     exrTexture.mapping = THREE.EquirectangularReflectionMapping;
     scene.environment = exrTexture;
-    scene.environmentIntensity = 1.35;
+    scene.background = exrTexture;
+    scene.backgroundIntensity = 0.002;
+    scene.environmentIntensity = 0.15;
     scene.environmentRotation = new THREE.Euler(0, 0, 0);
+    scene.backgroundRotation = new THREE.Euler(0, 0, 0);
     console.log('HDRI loaded');
+    if (window.preloaderDone) window.preloaderDone('hdri');
   },
   undefined,
-  (err) => { console.error('HDRI failed to load:', err); }
+  (err) => {
+    console.error('HDRI failed to load:', err);
+    if (window.preloaderDone) window.preloaderDone('hdri');
+  }
 );
 
 // ── Lighting ───────────────────────────────────────────────────────────────
@@ -278,40 +367,75 @@ camera.add(camLight.target);
 camLight.target.position.set(0, -8, -2);
 
 
-// ── Central platform ────────────────────────────────────────────────────────
-const platformGroup = new THREE.Group();
-platformGroup.position.y = -5.9;
-scene.add(platformGroup);
 
-// Main disc
-const platformGeo = new THREE.CylinderGeometry(6, 6.5, 0.3, 64);
-const platformMat = new THREE.MeshStandardMaterial({
-  color: 0x111118,
-  metalness: 0.8,
-  roughness: 0.3,
-  envMapIntensity: 0.5,
+// ── Screen platforms — one below each screen ────────────────────────────────
+const screenPlatforms = [];
+const SCREEN_COLORS = {
+  hero:     0x1C48E8,
+  about:    0xF3305D,
+  projects: 0xe3b23c,
+  contact:  0x22162B,
+};
+SECTIONS.forEach((sec) => {
+  const g = new THREE.Group();
+  const x = RADIUS * Math.sin(sec.theta);
+  const z = RADIUS * Math.cos(sec.theta);
+  g.position.set(x, -5.9, z);
+  g.scale.setScalar(0.75);
+  scene.add(g);
+
+  const disc = new THREE.Mesh(
+    new THREE.CylinderGeometry(6, 6.5, 0.3, 64),
+    new THREE.MeshLambertMaterial({ color: 0x111118, emissive: 0x000000, reflectivity: 0, fog: true })
+  );
+  disc.name = 'screen_platform_disc_' + sec.id;
+  g.add(disc);
+
+  const edge = new THREE.Mesh(
+    new THREE.TorusGeometry(6.25, 0.06, 16, 128),
+    new THREE.MeshBasicMaterial({ color: 0xffffff, fog: false })
+  );
+  edge.name = 'screen_platform_edge_' + sec.id;
+  edge.rotation.x = Math.PI / 2;
+  edge.position.y = 0.16;
+  g.add(edge);
+
+  const ringColor = SCREEN_COLORS[sec.id] || 0x2244aa;
+
+  // Glow layers — many soft rings with additive blending for smooth falloff
+  const glowLayers = [
+    { tube: 1.05, opacity: 0.015 },
+    { tube: 0.75, opacity: 0.025 },
+    { tube: 0.52, opacity: 0.035 },
+    { tube: 0.33, opacity: 0.05 },
+    { tube: 0.21, opacity: 0.07 },
+    { tube: 0.12, opacity: 0.1 },
+  ];
+  glowLayers.forEach(gl => {
+    const mesh = new THREE.Mesh(
+      new THREE.TorusGeometry(3.5, gl.tube, 16, 96),
+      new THREE.MeshBasicMaterial({
+        color: ringColor, transparent: true, opacity: gl.opacity,
+        fog: false, depthWrite: false, blending: THREE.AdditiveBlending,
+      })
+    );
+    mesh.rotation.x = Math.PI / 2;
+    mesh.position.y = 0.17;
+    g.add(mesh);
+  });
+
+  // Core ring
+  const inner = new THREE.Mesh(
+    new THREE.TorusGeometry(3.5, 0.03, 16, 96),
+    new THREE.MeshBasicMaterial({ color: ringColor, transparent: true, opacity: 0.6, fog: false })
+  );
+  inner.name = 'screen_platform_inner_' + sec.id;
+  inner.rotation.x = Math.PI / 2;
+  inner.position.y = 0.17;
+  g.add(inner);
+
+  screenPlatforms.push({ group: g, inner });
 });
-const platformMesh = new THREE.Mesh(platformGeo, platformMat);
-platformMesh.name = 'platform_disc';
-platformGroup.add(platformMesh);
-
-// Emissive edge ring
-const edgeRingGeo = new THREE.TorusGeometry(6.25, 0.06, 16, 128);
-const edgeRingMat = new THREE.MeshBasicMaterial({ color: 0x4488ff, fog: false });
-const edgeRing = new THREE.Mesh(edgeRingGeo, edgeRingMat);
-edgeRing.name = 'platform_edge_ring';
-edgeRing.rotation.x = Math.PI / 2;
-edgeRing.position.y = 0.16;
-platformGroup.add(edgeRing);
-
-// Inner concentric ring detail
-const innerRingGeo = new THREE.TorusGeometry(3.5, 0.03, 16, 96);
-const innerRingMat = new THREE.MeshBasicMaterial({ color: 0x2244aa, transparent: true, opacity: 0.6, fog: false });
-const innerRing = new THREE.Mesh(innerRingGeo, innerRingMat);
-innerRing.name = 'platform_inner_ring';
-innerRing.rotation.x = Math.PI / 2;
-innerRing.position.y = 0.17;
-platformGroup.add(innerRing);
 
 // ── Floor cables (lines from screens to center) ─────────────────────────────
 const cableDots = [];
@@ -500,12 +624,16 @@ composer.addPass(afterimagePass);
 
 let prevRotY = 0;
 
-// Vignette — darkens edges for cinematic feel
-const vignetteShader = {
+// Combined post-processing — vignette + chromatic aberration + film grain + color grading
+// Merged into a single shader pass (saves 3 full-screen texture reads per frame)
+const combinedPostShader = {
   uniforms: {
-    tDiffuse: { value: null },
-    offset:   { value: 1.0 },
-    darkness: { value: 1.6 },
+    tDiffuse:       { value: null },
+    uChromatic:     { value: 0.003 },
+    uGrainTime:     { value: 0.0 },
+    uGrainIntensity:{ value: 0.005 },
+    uGradeIntensity:{ value: 0.12 },
+    uDarkness:      { value: 1.6 },
   },
   vertexShader: `
     varying vec2 vUv;
@@ -516,117 +644,50 @@ const vignetteShader = {
   `,
   fragmentShader: `
     uniform sampler2D tDiffuse;
-    uniform float offset;
-    uniform float darkness;
+    uniform float uChromatic;
+    uniform float uGrainTime;
+    uniform float uGrainIntensity;
+    uniform float uGradeIntensity;
+    uniform float uDarkness;
     varying vec2 vUv;
-    void main() {
-      vec4 texel = texture2D(tDiffuse, vUv);
-      vec2 uv = (vUv - 0.5) * 2.0;
-      float vig = clamp(1.0 - dot(uv, uv) * darkness, 0.0, 1.0);
-      texel.rgb *= mix(1.0 - darkness * 0.3, 1.0, vig);
-      gl_FragColor = texel;
-    }
-  `,
-};
-composer.addPass(new ShaderPass(vignetteShader));
 
-// Chromatic aberration — subtle RGB split at edges
-const chromaticShader = {
-  uniforms: {
-    tDiffuse: { value: null },
-    uIntensity: { value: 0.003 },
-  },
-  vertexShader: `
-    varying vec2 vUv;
-    void main() {
-      vUv = uv;
-      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-    }
-  `,
-  fragmentShader: `
-    uniform sampler2D tDiffuse;
-    uniform float uIntensity;
-    varying vec2 vUv;
-    void main() {
-      vec2 dir = vUv - 0.5;
-      float dist = length(dir);
-      float offset = uIntensity * dist;
-      vec2 uvR = vUv + dir * offset;
-      vec2 uvB = vUv - dir * offset;
-      float r = texture2D(tDiffuse, uvR).r;
-      float g = texture2D(tDiffuse, vUv).g;
-      float b = texture2D(tDiffuse, uvB).b;
-      float a = texture2D(tDiffuse, vUv).a;
-      gl_FragColor = vec4(r, g, b, a);
-    }
-  `,
-};
-const chromaticPass = new ShaderPass(chromaticShader);
-composer.addPass(chromaticPass);
-
-// Film grain — subtle noise overlay
-const filmGrainShader = {
-  uniforms: {
-    tDiffuse: { value: null },
-    uTime: { value: 0.0 },
-    uIntensity: { value: 0.005 },
-  },
-  vertexShader: `
-    varying vec2 vUv;
-    void main() {
-      vUv = uv;
-      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-    }
-  `,
-  fragmentShader: `
-    uniform sampler2D tDiffuse;
-    uniform float uTime;
-    uniform float uIntensity;
-    varying vec2 vUv;
     float rand(vec2 co) {
       return fract(sin(dot(co, vec2(12.9898, 78.233))) * 43758.5453);
     }
-    void main() {
-      vec4 texel = texture2D(tDiffuse, vUv);
-      float grain = rand(vUv + uTime) * 2.0 - 1.0;
-      texel.rgb += grain * uIntensity;
-      gl_FragColor = texel;
-    }
-  `,
-};
-const filmGrainPass = new ShaderPass(filmGrainShader);
-composer.addPass(filmGrainPass);
 
-// Color grading — subtle cinematic teal shadows / warm highlights
-const colorGradeShader = {
-  uniforms: {
-    tDiffuse: { value: null },
-    uIntensity: { value: 0.12 },
-  },
-  vertexShader: `
-    varying vec2 vUv;
     void main() {
-      vUv = uv;
-      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-    }
-  `,
-  fragmentShader: `
-    uniform sampler2D tDiffuse;
-    uniform float uIntensity;
-    varying vec2 vUv;
-    void main() {
-      vec4 texel = texture2D(tDiffuse, vUv);
-      float lum = dot(texel.rgb, vec3(0.299, 0.587, 0.114));
+      // Chromatic aberration
+      vec2 dir = vUv - 0.5;
+      float dist = length(dir);
+      float offset = uChromatic * dist;
+      float r = texture2D(tDiffuse, vUv + dir * offset).r;
+      float g = texture2D(tDiffuse, vUv).g;
+      float b = texture2D(tDiffuse, vUv - dir * offset).b;
+      vec3 color = vec3(r, g, b);
+
+      // Vignette
+      vec2 uv2 = (vUv - 0.5) * 2.0;
+      float vig = clamp(1.0 - dot(uv2, uv2) * uDarkness, 0.0, 1.0);
+      color *= mix(1.0 - uDarkness * 0.3, 1.0, vig);
+
+      // Film grain
+      float grain = rand(vUv + uGrainTime) * 2.0 - 1.0;
+      color += grain * uGrainIntensity;
+
+      // Color grading
+      float lum = dot(color, vec3(0.299, 0.587, 0.114));
       vec3 shadows = vec3(0.0, 0.05, 0.1);
       vec3 highlights = vec3(0.08, 0.04, 0.0);
       vec3 grade = mix(shadows, highlights, lum);
-      texel.rgb += grade * uIntensity;
-      texel.rgb = mix(vec3(lum), texel.rgb, 1.08);
-      gl_FragColor = texel;
+      color += grade * uGradeIntensity;
+      color = mix(vec3(lum), color, 1.08);
+
+      gl_FragColor = vec4(color, 1.0);
     }
   `,
 };
-composer.addPass(new ShaderPass(colorGradeShader));
+const combinedPass = new ShaderPass(combinedPostShader);
+composer.addPass(combinedPass);
 
 // Output pass — applies tone mapping + color space conversion
 composer.addPass(new OutputPass());
@@ -768,10 +829,10 @@ const floorMaterial = new THREE.MeshPhysicalMaterial({
 });
 
 // Reflector underneath — captures real screen content
-const reflectorGeo = new THREE.PlaneGeometry(120, 120);
+const reflectorGeo = new THREE.PlaneGeometry(240, 240);
 const reflector = new Reflector(reflectorGeo, {
-  textureWidth: 512,
-  textureHeight: 512,
+  textureWidth: 256,
+  textureHeight: 256,
   color: 0x666677,
   recursion: 0,
 });
@@ -805,7 +866,7 @@ fadeMaskCtx.fillStyle = fadeGrad;
 fadeMaskCtx.fillRect(0, 0, fadeMaskSize, fadeMaskSize);
 const fadeMaskTex = new THREE.CanvasTexture(fadeMaskCanvas);
 
-const fadeMaskGeo = new THREE.PlaneGeometry(200, 200);
+const fadeMaskGeo = new THREE.PlaneGeometry(400, 400);
 fadeMaskGeo.rotateX(-Math.PI / 2);
 const fadeMaskMat = new THREE.MeshBasicMaterial({
   map: fadeMaskTex,
@@ -820,7 +881,7 @@ fadeMask.renderOrder = 2;
 scene.add(fadeMask);
 
 // Textured floor on top — semi-transparent so reflections show through
-const floorGeo = new THREE.PlaneGeometry(200, 200);
+const floorGeo = new THREE.PlaneGeometry(400, 400);
 floorGeo.rotateX(-Math.PI / 2);
 const floorMesh = new THREE.Mesh(floorGeo, floorMaterial);
 floorMesh.name = 'floor';
@@ -831,8 +892,231 @@ scene.add(floorMesh);
 
 
 
+// ── Floor luminous wave system ────────────────────────────────────────────────
+const floorWaveVS = `
+  varying vec3 vWorldPos;
+  void main() {
+    vec4 wp = modelMatrix * vec4(position, 1.0);
+    vWorldPos = wp.xyz;
+    gl_Position = projectionMatrix * viewMatrix * wp;
+  }
+`;
+
+const floorWaveFS = `
+  uniform float uWavePos;
+  uniform float uWaveWidth;
+  uniform float uDirX;
+  uniform float uDirZ;
+  uniform float uIntensity;
+
+  varying vec3 vWorldPos;
+
+  void main() {
+    // Grid constants: PlaneGeometry(400,400), repeat(6,6), 16 cells per tile
+    const float cellSize   = 2.0833;
+    const float majorSize  = 8.3333;
+    const float lineW      = 0.06;
+    const float majorLineW = 0.10;
+
+    float cx  = mod(abs(vWorldPos.x), cellSize);
+    float cz  = mod(abs(vWorldPos.z), cellSize);
+    float gx  = 1.0 - smoothstep(0.0, lineW, min(cx, cellSize - cx));
+    float gz  = 1.0 - smoothstep(0.0, lineW, min(cz, cellSize - cz));
+    float grid = max(gx, gz);
+
+    float mx  = mod(abs(vWorldPos.x), majorSize);
+    float mz  = mod(abs(vWorldPos.z), majorSize);
+    float mgx = 1.0 - smoothstep(0.0, majorLineW, min(mx, majorSize - mx));
+    float mgz = 1.0 - smoothstep(0.0, majorLineW, min(mz, majorSize - mz));
+    grid = max(grid, max(mgx, mgz) * 1.5);
+
+    float proj     = vWorldPos.x * uDirX + vWorldPos.z * uDirZ;
+    float dist     = abs(proj - uWavePos);
+    float envelope = exp(-dist * dist / (uWaveWidth * uWaveWidth));
+
+    // Radial fade — keep wave on floor only, away from screen bases
+    float radius  = length(vWorldPos.xz);
+    float radFade = 1.0 - smoothstep(28.0, 50.0, radius);
+
+    float brightness = grid * envelope * uIntensity * radFade;
+    vec3  col        = mix(vec3(0.15, 0.5, 1.0), vec3(0.8, 0.92, 1.0), envelope);
+
+    gl_FragColor = vec4(col * brightness, min(1.0, brightness * 0.85));
+  }
+`;
+
+// All 12 directions: 4 axis-aligned + 4 diagonal + 4 intermediate (~22.5°)
+const FLOOR_WAVE_DIRS = (() => {
+  const dirs = [];
+  for (let i = 0; i < 12; i++) {
+    const a = (i / 12) * Math.PI * 2;
+    dirs.push([Math.cos(a), Math.sin(a)]);
+  }
+  return dirs;
+})();
+
+const floorWaves = [];
+
+for (let w = 0; w < 3; w++) {
+  const wGeo = new THREE.PlaneGeometry(600, 600);
+  wGeo.rotateX(-Math.PI / 2);
+  const wUniforms = {
+    uWavePos:   { value: -999.0 },
+    uWaveWidth: { value: 12.0 },
+    uDirX:      { value: 1.0 },
+    uDirZ:      { value: 0.0 },
+    uIntensity: { value: 0.0 },
+  };
+  const wMat = new THREE.ShaderMaterial({
+    vertexShader:   floorWaveVS,
+    fragmentShader: floorWaveFS,
+    uniforms:       wUniforms,
+    transparent:    true,
+    blending:       THREE.AdditiveBlending,
+    depthWrite:     false,
+    depthTest:      true,
+    fog:            false,
+    side:           THREE.DoubleSide,
+  });
+  const wMesh = new THREE.Mesh(wGeo, wMat);
+  wMesh.name        = `floor_wave_${w}`;
+  wMesh.position.y  = -5.98;
+  wMesh.renderOrder = 6;
+  scene.add(wMesh);
+
+  floorWaves.push({
+    uniforms:      wUniforms,
+    active:        false,
+    pos:           -999,
+    speed:         0,
+    baseIntensity: 0,
+    nextAt:        2 + w * 4 + Math.random() * 4,
+  });
+}
+
+function launchFloorWave(wv) {
+  const dir = FLOOR_WAVE_DIRS[Math.floor(Math.random() * FLOOR_WAVE_DIRS.length)];
+  wv.uniforms.uDirX.value      = dir[0];
+  wv.uniforms.uDirZ.value      = dir[1];
+  wv.uniforms.uWaveWidth.value = 7 + Math.random() * 8;
+  wv.baseIntensity             = 0.5 + Math.random() * 0.3;
+  wv.uniforms.uIntensity.value = 0;
+  wv.pos   = -160;
+  wv.speed = 8 + Math.random() * 12;
+  wv.uniforms.uWavePos.value = wv.pos;
+  wv.active = true;
+}
+
+function updateFloorWaves(dt) {
+  floorWaves.forEach((wv) => {
+    if (!wv.active) {
+      wv.nextAt -= dt;
+      if (wv.nextAt <= 0) launchFloorWave(wv);
+      return;
+    }
+
+    wv.pos += wv.speed * dt;
+    wv.uniforms.uWavePos.value = wv.pos;
+
+    // Fade in over first 30 units, fade out over last 30 units
+    const fadeIn  = Math.min(1.0, Math.max(0.0, (wv.pos + 160) / 30));
+    const fadeOut = Math.min(1.0, Math.max(0.0, (wv.pos - 130) / 30));
+    wv.uniforms.uIntensity.value = wv.baseIntensity * fadeIn * (1.0 - fadeOut);
+
+    if (wv.pos >= 160) {
+      wv.active = false;
+      wv.uniforms.uIntensity.value = 0;
+      wv.nextAt = 3 + Math.random() * 8;
+    }
+  });
+}
+
 // ── Camera state ───────────────────────────────────────────────────────────
 const cam = { zoom: MAX_ZOOM, rotY: 0 };
+
+// ── Intro camera sequence ─────────────────────────────────────────────────
+// Phase 1 (3s): top-down spinning fast
+// Phase 2 (3.5s): descend to eye level, spin decelerating
+// Phase 3 (1.5s): final slow spin to face hero + zoom in
+const intro = {
+  active: true,
+  camY: 90,           // start high above
+  camZ: -2,           // near center looking down
+  camRotX: -Math.PI / 2 + 0.05,  // looking down
+  rigRotY: 0,         // accumulated rotation
+  spinSpeed: 4.5,     // rad/s, matches ring end speed
+  zoom: 0,            // 0 = zoomed out, MAX_ZOOM = zoomed in
+  done: false,
+};
+
+const introTl = gsap.timeline({ paused: true, onComplete: () => {
+  intro.active = false;
+  cam.rotY = 0;
+  cam.zoom = MAX_ZOOM;
+  cameraRig.rotation.y = 0;
+  camera.position.y = 2;
+  camera.position.z = -MAX_ZOOM;
+  camera.rotation.x = 0;
+  camera.rotation.y = 0;
+  // Reset scroll to top before releasing so ScrollTrigger starts at hero
+  window.scrollTo(0, 0);
+  lenis.scrollTo(0, { immediate: true });
+  ScrollTrigger.refresh();
+  lenis.start();
+} });
+
+// Phase 1 (0–3s): hold top-down, spinning fast
+introTl.to(intro, { duration: 3, ease: 'none' });
+introTl.addLabel('descend');
+
+// Phase 2 (3–6.5s): descend to screen level, tilt camera horizontal, decelerate spin
+introTl.to(intro, {
+  camY: 2,
+  camRotX: 0,
+  spinSpeed: 0.8,
+  duration: 3.5,
+  ease: 'power2.inOut',
+}, 'descend');
+
+introTl.to(intro, {
+  camZ: -8,
+  duration: 3.5,
+  ease: 'power2.in',
+}, 'descend');
+
+introTl.addLabel('settle');
+
+// Phase 3: stop spin, tween rotation directly to hero-facing angle
+introTl.call(() => {
+  // Kill spin immediately — GSAP will drive rotation from here
+  intro.spinSpeed = 0;
+  // Calculate the next forward hero-facing angle
+  const target = Math.ceil(intro.rigRotY / (Math.PI * 2)) * Math.PI * 2;
+  // Tween rigRotY directly to the target
+  gsap.to(intro, {
+    rigRotY: target,
+    duration: 2,
+    ease: 'power3.out',
+  });
+}, [], 'settle');
+
+introTl.addLabel('zoomIn', 'settle+=2');
+
+// Phase 4: gently enter hero screen
+introTl.to(intro, {
+  zoom: MAX_ZOOM * 0.6,
+  duration: 1,
+  ease: 'power2.out',
+}, 'zoomIn');
+
+function startIntroSequence() {
+  if (intro.done) return;
+  intro.done = true;
+  introTl.play();
+}
+
+window._startCameraIntro = startIntroSequence;
+
 
 // ── Timeline: each phase is a separate scroll step ─────────────────────────
 // Step 1: zoom out — Step 2: rotate — Step 3: zoom in (repeat per transition)
@@ -877,6 +1161,10 @@ const allLabels = Object.values(tl.labels).map((t) => t / totalDur);
 // Active section labels for nav click targets
 const sectionSnaps = SECTIONS.map((sec) => tl.labels[sec.id] / totalDur);
 
+let scrollProgress = 0;
+let prevScrollProgress = 0;
+let scrollDirection = 'forward';
+
 ScrollTrigger.create({
   trigger: '#scroll-spacer',
   start: 'top top',
@@ -888,13 +1176,32 @@ ScrollTrigger.create({
     duration: { min: 0.3, max: 0.6 },
     ease: 'power3.inOut',
   },
+  onUpdate: (self) => {
+    if (self.progress !== scrollProgress) {
+      scrollDirection = self.progress > scrollProgress ? 'forward' : 'backward';
+    }
+    prevScrollProgress = scrollProgress;
+    scrollProgress = self.progress;
+  },
 });
 
 // ── Overlay management ─────────────────────────────────────────────────────
 const overlayEls = SECTIONS.map((s) => document.getElementById(s.id));
+const navLinkEls = Array.from(document.querySelectorAll('.nav-link[data-section]'));
 const SHOW_THRESHOLD = MAX_ZOOM * 0.5;
 const FULL_THRESHOLD = MAX_ZOOM * 0.8;
 const INTERACT_THRESHOLD = MAX_ZOOM * 0.9;
+const sectionWasActive = new Array(SECTIONS.length).fill(false);
+
+// Hide all overlays at boot (intro camera is active)
+if (intro.active) {
+  overlayEls.forEach(el => {
+    if (!el) return;
+    el.style.opacity = 0;
+    el.style.pointerEvents = 'none';
+    if (el.id !== 'hero') el.classList.remove('active');
+  });
+}
 
 function updateOverlays() {
   let closest = 0;
@@ -917,6 +1224,12 @@ function updateOverlays() {
       // Only toggle 'active' for non-hero sections — hero keeps it always for canvas rendering
       if (el.id !== 'hero') {
         el.classList.toggle('active', canInteract);
+        if (canInteract && !sectionWasActive[i]) {
+          if (el.id === 'about' && window._aboutServicesEnter) {
+            window._aboutServicesEnter(scrollDirection);
+          }
+        }
+        sectionWasActive[i] = canInteract;
       }
     } else {
       el.style.opacity = 0;
@@ -925,18 +1238,20 @@ function updateOverlays() {
       if (el.id !== 'hero') {
         el.classList.remove('active');
       }
+      if (el.id === 'about' && window._aboutServicesReset) {
+        window._aboutServicesReset();
+      }
     }
   });
 
   // Navbar active link
-  document.querySelectorAll('.nav-link[data-section]').forEach((link) => {
+  navLinkEls.forEach((link) => {
     link.classList.toggle('active', link.dataset.section === SECTIONS[closest].id);
   });
 
-  // Nav progress dots
+  // Nav progress — driven by timeline scroll position
   if (window.setNavProgress) {
-    const p = Math.min(1, Math.max(0, cam.rotY / (-Math.PI * 1.5)));
-    window.setNavProgress(p);
+    window.setNavProgress(scrollProgress);
   }
 }
 
@@ -980,7 +1295,7 @@ const glitchState = screenMeshes.map(() => ({
 
 function updateGlitches(dt) {
   glitchState.forEach((g, i) => {
-    if (i === 0) return; // hero uses MeshBasicMaterial
+    if (i === 0 || i === 1 || i === 2 || i === 3) return; // all screens use MeshBasicMaterial
     const mat = screenMeshes[i].material;
     g.nextGlitch -= dt;
 
@@ -1038,19 +1353,36 @@ function animate() {
   // Screen glitch updates
   updateGlitches(dt);
 
+  // Floor wave pulses
+  updateFloorWaves(dt);
+
   // Smooth lerp toward mouse target
   smoothMouse.x += (mouse.x - smoothMouse.x) * PARALLAX_SMOOTH;
   smoothMouse.y += (mouse.y - smoothMouse.y) * PARALLAX_SMOOTH;
 
-  cameraRig.rotation.y = cam.rotY;
-  camera.position.y = 2;
-  camera.position.z = -cam.zoom;
+  if (intro.active) {
+    // Only accumulate spin when spinSpeed > 0 (GSAP drives rigRotY during settle)
+    if (intro.spinSpeed > 0.01) {
+      intro.rigRotY += intro.spinSpeed * dt;
+    }
 
-  // Camera tumble — follows cursor, clamped to prevent losing content
-  const maxTiltX = 0.04; // ~2.5° vertical
-  const maxTiltY = 0.06;  // ~3.4° horizontal
-  camera.rotation.y = Math.max(-maxTiltY, Math.min(maxTiltY, smoothMouse.x * 0.25));
-  camera.rotation.x = Math.max(-maxTiltX, Math.min(maxTiltX, smoothMouse.y * 0.15));
+    cameraRig.rotation.y = intro.rigRotY;
+    camera.position.y = intro.camY;
+    camera.position.z = intro.camZ - intro.zoom;
+    camera.rotation.x = intro.camRotX;
+    camera.rotation.y = 0;
+    lenis.stop();
+  } else {
+    cameraRig.rotation.y = cam.rotY;
+    camera.position.y = 2;
+    camera.position.z = -cam.zoom;
+
+    // Camera tumble — follows cursor, clamped to prevent losing content
+    const maxTiltX = 0.04; // ~2.5° vertical
+    const maxTiltY = 0.06;  // ~3.4° horizontal
+    camera.rotation.y = Math.max(-maxTiltY, Math.min(maxTiltY, smoothMouse.x * 0.25));
+    camera.rotation.x = Math.max(-maxTiltX, Math.min(maxTiltX, smoothMouse.y * 0.15));
+  }
 
 
   // Motion blur — stronger when camera is rotating
@@ -1059,19 +1391,44 @@ function animate() {
   afterimagePass.uniforms['damp'].value = blurAmount;
   prevRotY = cam.rotY;
 
-  // Update hero texture every frame (live canvas animation)
-  if (heroTexture) heroTexture.needsUpdate = true;
+  // Re-upload canvas textures — always update so reflector can capture all screens
+  if (heroTexture)     heroTexture.needsUpdate = true;
+  if (aboutTexture)    aboutTexture.needsUpdate = true;
+  if (projectsTexture) projectsTexture.needsUpdate = true;
+  if (contactTexture)  contactTexture.needsUpdate = true;
+
+  // Expose camera state so canvas modules can pause heavy rendering when their
+  // screen is on the far side of the scene (not facing the camera).
+  window.projectsZoom = cam.zoom;
+  window.dash8CamRotY = cam.rotY;
 
   // Slowly rotate starfield
   stars.rotation.y += 0.00008;
 
   // Rotate HDRI environment for dynamic reflections
   if (scene.environmentRotation) {
-    scene.environmentRotation.y += 0.0003;
+    scene.environmentRotation.y += 0.000873;
+    scene.backgroundRotation.y = scene.environmentRotation.y;
   }
 
   // Rotate inner platform ring
-  innerRing.rotation.z += 0.002;
+  screenPlatforms.forEach((sp, i) => {
+    sp.inner.rotation.z += 0.002;
+    const innerPhase = i * 2.1;
+    sp.inner.rotation.x = Math.PI / 2 + Math.sin(now * 0.0007 + innerPhase) * 0.035;
+    sp.inner.rotation.y = Math.cos(now * 0.0006 + innerPhase * 1.4) * 0.03;
+    sp.group.rotation.y += 0.000291;
+    const phase = i * 1.57;
+    sp.group.position.y = -5.9 + Math.sin(now * 0.0005 + phase) * 0.12;
+    sp.group.rotation.x = Math.sin(now * 0.0004 + phase * 1.3) * 0.0157;
+    sp.group.rotation.z = Math.cos(now * 0.00035 + phase * 0.9) * 0.0157;
+  });
+
+  // Hide scene clutter during intro top-down view
+  embers.visible = !intro.active;
+  particles.visible = !intro.active;
+  reflector.visible = !intro.active;
+  cableDots.forEach(d => { d.visible = !intro.active; });
 
   // Animate cable pulse dots
   cableDots.forEach((dot) => {
@@ -1081,8 +1438,9 @@ function animate() {
     dot.position.z = pt.z;
   });
 
-  // Animate holographic UI fragments — orbit + bob
+  // Animate holographic UI fragments — orbit + bob (hidden during intro)
   holoFragments.forEach((h) => {
+    h.mesh.visible = !intro.active;
     h.orbitAngle += h.orbitSpeed;
     h.bobPhase += h.bobSpeed;
     h.mesh.position.x = Math.cos(h.orbitAngle) * h.orbitDist;
@@ -1107,16 +1465,14 @@ function animate() {
   }
   emberPos.needsUpdate = true;
 
-  // Boost chromatic aberration during rotation
-  chromaticPass.uniforms.uIntensity.value = 0.003 + rotDelta * 2;
-
-  // Update film grain time
-  filmGrainPass.uniforms.uTime.value = performance.now() * 0.001;
+  // Update combined post-processing uniforms
+  combinedPass.uniforms.uChromatic.value = 0.003 + rotDelta * 2;
+  combinedPass.uniforms.uGrainTime.value = performance.now() * 0.001;
 
   // Screen idle breathing — subtle emissive pulse
   const breathe = Math.sin(now * 0.001) * 0.15;
   screenMeshes.forEach((m, i) => {
-    if (i === 0) return; // hero uses MeshBasicMaterial
+    if (i === 0 || i === 1 || i === 2 || i === 3) return; // all screens use MeshBasicMaterial
     if (!glitchState[i].active) {
       const base = 2.0;
       m.material.emissiveIntensity = base + breathe;
@@ -1146,10 +1502,10 @@ function animate() {
   pos.needsUpdate = true;
   particleMat.opacity = 0.4 + camDelta * 0.3;
 
-  updateOverlays();
-  stats.begin();
+  if (!intro.active) updateOverlays();
+  if (stats) stats.begin();
   composer.render();
-  stats.end();
+  if (stats) stats.end();
 }
 animate();
 
