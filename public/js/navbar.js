@@ -214,3 +214,46 @@ window.addEventListener('resize', () => {
   lockGlitchWidths();
   drawRuler();
 });
+
+/* ── Enquiry form submission ────────────────────────── */
+const enquiryForm = document.getElementById('enquiry-form');
+if (enquiryForm) {
+  enquiryForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const messageEl = document.getElementById('enquiry-message');
+    const submitBtn = enquiryForm.querySelector('.enquiry-submit');
+    const originalText = submitBtn.textContent;
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'SENDING...';
+    messageEl.textContent = '';
+    messageEl.className = '';
+
+    const formData = new FormData(enquiryForm);
+    try {
+      const res = await fetch('https://formspree.io/f/mzdqopnd', {
+        method: 'POST',
+        body: formData,
+        headers: { 'Accept': 'application/json' },
+      });
+
+      if (res.ok) {
+        messageEl.textContent = 'Message sent successfully!';
+        messageEl.classList.add('success');
+        enquiryForm.reset();
+        setTimeout(() => {
+          messageEl.textContent = '';
+          messageEl.className = '';
+        }, 4000);
+      } else {
+        throw new Error('Form submission failed');
+      }
+    } catch (err) {
+      messageEl.textContent = 'Error sending message. Try again.';
+      messageEl.classList.add('error');
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = originalText;
+    }
+  });
+}

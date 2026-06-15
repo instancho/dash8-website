@@ -769,6 +769,21 @@ html.lenis, html.lenis body {
   background: #2c5ff8;
 }
 
+.enquiry-message {
+  margin-top: 16px;
+  font-family: 'Micro 5', monospace;
+  font-size: 14px;
+  min-height: 20px;
+}
+
+.enquiry-message.success {
+  color: #60d046;
+}
+
+.enquiry-message.error {
+  color: #ff6b6b;
+}
+
 /* ── About Services ─────────────────────────────────── */
 .about-services {
   position: relative;
