@@ -216,10 +216,14 @@ window.addEventListener('resize', () => {
 });
 
 /* ── Enquiry form submission ────────────────────────── */
-const enquiryForm = document.getElementById('enquiry-form');
-if (enquiryForm) {
+function setupEnquiryForm() {
+  const enquiryForm = document.getElementById('enquiry-form');
+  if (!enquiryForm) return;
+
   enquiryForm.addEventListener('submit', async (e) => {
     e.preventDefault();
+    e.stopPropagation();
+
     const messageEl = document.getElementById('enquiry-message');
     const submitBtn = enquiryForm.querySelector('.enquiry-submit');
     const originalText = submitBtn.textContent;
@@ -255,5 +259,11 @@ if (enquiryForm) {
       submitBtn.disabled = false;
       submitBtn.textContent = originalText;
     }
-  });
+  }, true);
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', setupEnquiryForm);
+} else {
+  setupEnquiryForm();
 }
