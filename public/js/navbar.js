@@ -224,14 +224,13 @@ function setupEnquiryForm() {
     e.preventDefault();
     e.stopPropagation();
 
-    const messageEl = document.getElementById('enquiry-message');
     const submitBtn = enquiryForm.querySelector('.enquiry-submit');
     const originalText = submitBtn.textContent;
+    const inputsContainer = enquiryForm.querySelector('.enquiry-inputs');
+    const successEl = enquiryForm.querySelector('.enquiry-success');
 
     submitBtn.disabled = true;
     submitBtn.textContent = 'SENDING...';
-    messageEl.textContent = '';
-    messageEl.className = '';
 
     const formData = new FormData(enquiryForm);
     try {
@@ -242,20 +241,14 @@ function setupEnquiryForm() {
       });
 
       if (res.ok) {
-        messageEl.textContent = 'Message sent successfully!';
-        messageEl.classList.add('success');
-        enquiryForm.reset();
-        setTimeout(() => {
-          messageEl.textContent = '';
-          messageEl.className = '';
-        }, 4000);
+        inputsContainer.style.display = 'none';
+        successEl.style.display = 'flex';
+        enquiryForm.classList.add('success-state');
       } else {
         throw new Error('Form submission failed');
       }
     } catch (err) {
-      messageEl.textContent = 'Error sending message. Try again.';
-      messageEl.classList.add('error');
-    } finally {
+      alert('Error sending message. Try again.');
       submitBtn.disabled = false;
       submitBtn.textContent = originalText;
     }

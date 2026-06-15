@@ -87,20 +87,25 @@
           <a class="contact-link contact-link--white" href="#" data-text="Submit an Enquiry">Submit an Enquiry</a>
           <div class="enquiry-form-panel">
             <form class="enquiry-form" id="enquiry-form" novalidate>
-              <div class="enquiry-field">
-                <input type="text" name="name" placeholder="NAME" autocomplete="off" />
+              <div class="enquiry-inputs">
+                <div class="enquiry-field">
+                  <input type="text" name="name" placeholder="NAME" autocomplete="off" />
+                </div>
+                <div class="enquiry-field">
+                  <input type="email" name="email" placeholder="EMAIL" autocomplete="off" />
+                </div>
+                <div class="enquiry-field">
+                  <input type="text" name="company" placeholder="COMPANY" autocomplete="off" />
+                </div>
+                <div class="enquiry-field">
+                  <input type="text" name="message" placeholder="YOUR MESSAGE" autocomplete="off" />
+                </div>
+                <button type="submit" class="enquiry-submit">SUBMIT</button>
               </div>
-              <div class="enquiry-field">
-                <input type="email" name="email" placeholder="EMAIL" autocomplete="off" />
+              <div class="enquiry-success" id="enquiry-success" style="display: none;">
+                <div class="enquiry-checkmark">✓</div>
+                <div class="enquiry-success-text">Response Successfully Submitted</div>
               </div>
-              <div class="enquiry-field">
-                <input type="text" name="company" placeholder="COMPANY" autocomplete="off" />
-              </div>
-              <div class="enquiry-field">
-                <input type="text" name="message" placeholder="YOUR MESSAGE" autocomplete="off" />
-              </div>
-              <button type="submit" class="enquiry-submit">SUBMIT</button>
-              <div class="enquiry-message" id="enquiry-message"></div>
             </form>
           </div>
         </div>

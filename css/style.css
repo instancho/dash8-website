@@ -769,19 +769,40 @@ html.lenis, html.lenis body {
   background: #2c5ff8;
 }
 
-.enquiry-message {
-  margin-top: 16px;
-  font-family: 'Micro 5', monospace;
-  font-size: 14px;
-  min-height: 20px;
+.enquiry-form.success-state {
+  border: 2px solid #60d046;
+  padding: 16px;
+  gap: 0;
 }
 
-.enquiry-message.success {
+.enquiry-inputs {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.enquiry-success {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  text-align: center;
+}
+
+.enquiry-checkmark {
+  font-size: 48px;
   color: #60d046;
+  font-family: 'Micro 5', monospace;
+  font-weight: bold;
+  line-height: 1;
 }
 
-.enquiry-message.error {
-  color: #ff6b6b;
+.enquiry-success-text {
+  font-family: 'Micro 5', monospace;
+  font-size: 16px;
+  color: #60d046;
+  letter-spacing: 0.05em;
 }
 
 /* ── About Services ─────────────────────────────────── */
