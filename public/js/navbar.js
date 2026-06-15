@@ -241,9 +241,12 @@ function setupEnquiryForm() {
       });
 
       if (res.ok) {
-        inputsContainer.style.display = 'none';
-        successEl.style.display = 'flex';
         enquiryForm.classList.add('success-state');
+        inputsContainer.classList.add('fade-out');
+        successEl.style.display = 'flex';
+        setTimeout(() => {
+          inputsContainer.style.display = 'none';
+        }, 400);
       } else {
         throw new Error('Form submission failed');
       }
