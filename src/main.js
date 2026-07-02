@@ -14,11 +14,13 @@ import { Reflector } from 'three/examples/jsm/objects/Reflector.js';
 
 gsap.registerPlugin(ScrollTrigger);
 
-// ── Performance monitor (FPS counter, top-right) ────────────────────────────
-const stats = new Stats();
-stats.showPanel(0); // 0 = FPS
-stats.dom.style.cssText = 'position:fixed;top:0;right:0;left:auto;z-index:9999;';
-document.body.appendChild(stats.dom);
+// ── Performance monitor (FPS counter, top-right) — dev only ─────────────────
+const stats = import.meta.env.DEV ? new Stats() : null;
+if (stats) {
+  stats.showPanel(0); // 0 = FPS
+  stats.dom.style.cssText = 'position:fixed;top:0;right:0;left:auto;z-index:9999;';
+  document.body.appendChild(stats.dom);
+}
 
 // ── Lenis smooth scroll ────────────────────────────────────────────────────
 const lenis = new Lenis();
@@ -324,7 +326,6 @@ new EXRLoader().load(
     scene.environmentIntensity = 0.15;
     scene.environmentRotation = new THREE.Euler(0, 0, 0);
     scene.backgroundRotation = new THREE.Euler(0, 0, 0);
-    console.log('HDRI loaded');
     if (window.preloaderDone) window.preloaderDone('hdri');
   },
   undefined,
@@ -1162,7 +1163,6 @@ const allLabels = Object.values(tl.labels).map((t) => t / totalDur);
 const sectionSnaps = SECTIONS.map((sec) => tl.labels[sec.id] / totalDur);
 
 let scrollProgress = 0;
-let prevScrollProgress = 0;
 let scrollDirection = 'forward';
 
 ScrollTrigger.create({
@@ -1180,7 +1180,6 @@ ScrollTrigger.create({
     if (self.progress !== scrollProgress) {
       scrollDirection = self.progress > scrollProgress ? 'forward' : 'backward';
     }
-    prevScrollProgress = scrollProgress;
     scrollProgress = self.progress;
   },
 });
@@ -1283,62 +1282,8 @@ window.addEventListener('mousemove', (e) => {
   mouse.y = (e.clientY / window.innerHeight - 0.5) * 2;
 });
 
-// ── Screen glitch system ─────────────────────────────────────────────────────
-const glitchState = screenMeshes.map(() => ({
-  active: false,
-  timer: 0,
-  duration: 0,
-  nextGlitch: 2 + Math.random() * 6,  // seconds until first glitch
-  origOffsetY: 0,
-  origEmissiveR: 1, origEmissiveG: 1, origEmissiveB: 1,
-}));
-
-function updateGlitches(dt) {
-  glitchState.forEach((g, i) => {
-    if (i === 0 || i === 1 || i === 2 || i === 3) return; // all screens use MeshBasicMaterial
-    const mat = screenMeshes[i].material;
-    g.nextGlitch -= dt;
-
-    if (!g.active && g.nextGlitch <= 0) {
-      // Start a glitch
-      g.active = true;
-      g.duration = 0.05 + Math.random() * 0.15;  // 50-200ms
-      g.timer = 0;
-      g.origOffsetY = mat.map ? mat.map.offset.y : 0;
-    }
-
-    if (g.active) {
-      g.timer += dt;
-      // Random UV shift (horizontal scan lines effect)
-      if (mat.map) {
-        mat.map.offset.y = g.origOffsetY + (Math.random() - 0.5) * 0.04;
-        if (mat.emissiveMap && mat.emissiveMap !== mat.map) {
-          mat.emissiveMap.offset.y = mat.map.offset.y;
-        }
-      }
-      // Flicker emissive intensity
-      mat.emissiveIntensity = 0.5 + Math.random() * 2.5;
-      // Occasional color shift
-      if (Math.random() > 0.5) {
-        mat.emissive.setRGB(0.7 + Math.random() * 0.3, 0.8 + Math.random() * 0.2, 1);
-      }
-
-      if (g.timer >= g.duration) {
-        // End glitch — restore
-        g.active = false;
-        g.nextGlitch = 3 + Math.random() * 8;  // 3-11s until next
-        if (mat.map) {
-          mat.map.offset.y = g.origOffsetY;
-          if (mat.emissiveMap && mat.emissiveMap !== mat.map) {
-            mat.emissiveMap.offset.y = g.origOffsetY;
-          }
-        }
-        mat.emissiveIntensity = 2.0; // non-hero screens only
-        mat.emissive.setRGB(1, 1, 1);
-      }
-    }
-  });
-}
+// All four screens use MeshBasicMaterial (live canvas textures), so the old
+// emissive glitch/breathing systems were no-ops and have been removed.
 
 let lastTime = performance.now();
 
@@ -1349,9 +1294,6 @@ function animate() {
   const now = performance.now();
   const dt = (now - lastTime) / 1000;
   lastTime = now;
-
-  // Screen glitch updates
-  updateGlitches(dt);
 
   // Floor wave pulses
   updateFloorWaves(dt);
@@ -1468,16 +1410,6 @@ function animate() {
   // Update combined post-processing uniforms
   combinedPass.uniforms.uChromatic.value = 0.003 + rotDelta * 2;
   combinedPass.uniforms.uGrainTime.value = performance.now() * 0.001;
-
-  // Screen idle breathing — subtle emissive pulse
-  const breathe = Math.sin(now * 0.001) * 0.15;
-  screenMeshes.forEach((m, i) => {
-    if (i === 0 || i === 1 || i === 2 || i === 3) return; // all screens use MeshBasicMaterial
-    if (!glitchState[i].active) {
-      const base = 2.0;
-      m.material.emissiveIntensity = base + breathe;
-    }
-  });
 
   // Screen floating — each screen bobs gently at its own phase
   screenGroups.forEach((g, i) => {
