@@ -494,6 +494,75 @@
     return scrollPos / (cards.length - 1);
   };
 
+  // ── Build card bodies from services-data.js (Google Sheet backend) ──────────
+  function buildServiceCards(services) {
+    cards.forEach((card, i) => {
+      card.innerHTML = '';
+      const data = services && services[i];
+      if (!data) return;
+
+      const inner = document.createElement('div');
+      inner.className = 'service-inner';
+      inner.style.setProperty('--svc-accent', COLORS[i] || '#F3305D');
+
+      // Header card — title + divider + subtext
+      if (data.title || data.subtext) {
+        const head = document.createElement('div');
+        head.className = 'service-head-card';
+        if (data.title) {
+          const t = document.createElement('h2');
+          t.className = 'service-head-title';
+          t.textContent = data.title;
+          head.appendChild(t);
+        }
+        if (data.title && data.subtext) {
+          const div = document.createElement('div');
+          div.className = 'service-divider';
+          head.appendChild(div);
+        }
+        if (data.subtext) {
+          const s = document.createElement('p');
+          s.className = 'service-head-sub';
+          s.textContent = data.subtext;
+          head.appendChild(s);
+        }
+        inner.appendChild(head);
+      }
+
+      // Bullet cards — one per point
+      (data.points || []).forEach((pt) => {
+        if (!pt.title && !pt.desc) return;
+        const pc = document.createElement('div');
+        pc.className = 'service-point-card';
+
+        const bullet = document.createElement('span');
+        bullet.className = 'service-point-bullet';
+        pc.appendChild(bullet);
+
+        const body = document.createElement('span');
+        body.className = 'service-point-body';
+        if (pt.title) {
+          const lbl = document.createElement('span');
+          lbl.className = 'service-point-title';
+          lbl.textContent = pt.title + (pt.desc ? ': ' : '');
+          body.appendChild(lbl);
+        }
+        if (pt.desc) {
+          const d = document.createElement('span');
+          d.className = 'service-point-desc';
+          d.textContent = pt.desc;
+          body.appendChild(d);
+        }
+        pc.appendChild(body);
+        inner.appendChild(pc);
+      });
+
+      card.appendChild(inner);
+    });
+  }
+
+  if (window.fetchServices) window.fetchServices().then(buildServiceCards);
+
   // ── Init ───────────────────────────────────────────────────────────────────
   resize();
   window.addEventListener('resize', resize);

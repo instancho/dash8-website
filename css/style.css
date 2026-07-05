@@ -746,29 +746,82 @@ html.lenis, html.lenis body {
   transform: translateY(-60px);
 }
 
-.service-index {
-  font-family: 'Micro 5', monospace;
-  font-size: 14px;
-  color: rgba(255,255,255,0.6);
-  letter-spacing: 0.3em;
-  margin-bottom: 16px;
+/* Stacked service card layout — header card + bullet cards */
+.service-inner {
+  --svc-accent: #F3305D;
+  width: min(560px, 86vw);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
-.service-title {
+.service-head-card {
+  background: #0c0c0c;
+  border-radius: 16px;
+  padding: 26px 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.service-head-title {
   font-family: 'Micro 5', monospace;
-  font-size: 72px;
-  letter-spacing: 0.12em;
-  color: #fff;
-  margin: 0 0 12px;
+  font-size: 34px;
   line-height: 1;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #fff;
+  margin: 0;
 }
 
-.service-desc {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 14px;
-  color: rgba(255,255,255,0.7);
-  letter-spacing: 0.05em;
+.service-divider {
+  height: 1px;
+  width: 100%;
+  background: rgba(255,255,255,0.12);
+}
+
+.service-head-sub {
+  font-family: 'Micro 5', monospace;
+  font-size: 15px;
+  line-height: 1.5;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--svc-accent);
   margin: 0;
+}
+
+.service-point-card {
+  background: #0c0c0c;
+  border-radius: 12px;
+  padding: 15px 20px;
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.service-point-bullet {
+  width: 7px;
+  height: 7px;
+  flex-shrink: 0;
+  background: var(--svc-accent);
+  transform: translateY(-1px);
+}
+
+.service-point-body {
+  font-family: 'Micro 5', monospace;
+  font-size: 15px;
+  line-height: 1.4;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.service-point-title {
+  color: #fff;
+  font-weight: 700;
+}
+
+.service-point-desc {
+  color: rgba(255,255,255,0.7);
 }
 
 .service-nav {
