@@ -45,6 +45,24 @@ body {
   overscroll-behavior: none;
 }
 
+/* ── Camera logo (top-centre, visible during transitions) ── */
+#camera-logo {
+  position: fixed;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 98;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.35s ease;
+}
+
+#camera-logo img {
+  display: block;
+  height: auto;
+  width: clamp(160px, 20vw, 288px);
+}
+
 /* ── Navbar ───────────────────────────────────────────────── */
 #bottom-fade {
   position: fixed;
@@ -782,7 +800,7 @@ html.lenis, html.lenis body {
 
 .service-head-sub {
   font-family: 'Micro 5', monospace;
-  font-size: 15px;
+  font-size: 18px;
   line-height: 1.5;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -809,7 +827,7 @@ html.lenis, html.lenis body {
 
 .service-point-body {
   font-family: 'Micro 5', monospace;
-  font-size: 15px;
+  font-size: 18px;
   line-height: 1.4;
   letter-spacing: 0.04em;
   text-transform: uppercase;
