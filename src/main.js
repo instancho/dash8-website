@@ -14,11 +14,23 @@ import { Reflector } from 'three/examples/jsm/objects/Reflector.js';
 
 gsap.registerPlugin(ScrollTrigger);
 
-// ── Performance monitor (FPS counter, top-right) ────────────────────────────
-const stats = new Stats();
-stats.showPanel(0); // 0 = FPS
-stats.dom.style.cssText = 'position:fixed;top:0;right:0;left:auto;z-index:9999;';
-document.body.appendChild(stats.dom);
+// ── Performance monitor (FPS counter, top-right) — dev only ─────────────────
+const stats = import.meta.env.DEV ? new Stats() : null;
+if (stats) {
+  stats.showPanel(0); // 0 = FPS
+  stats.dom.style.cssText = 'position:fixed;top:0;right:0;left:auto;z-index:9999;';
+  document.body.appendChild(stats.dom);
+}
+
+// Dev-only averaged FPS readout — measured from real frame intervals (reflects
+// dropped frames), updated twice a second. Bottom-right.
+let fpsEl = null, fpsFrames = 0, fpsAccum = 0;
+if (import.meta.env.DEV) {
+  fpsEl = document.createElement('div');
+  fpsEl.style.cssText = 'position:fixed;bottom:4px;right:6px;z-index:99999;font:12px/1.4 monospace;color:#7CFC00;background:rgba(0,0,0,.55);padding:2px 8px;border-radius:3px;pointer-events:none;';
+  fpsEl.textContent = '— fps';
+  document.body.appendChild(fpsEl);
+}
 
 // ── Lenis smooth scroll ────────────────────────────────────────────────────
 const lenis = new Lenis();
@@ -324,7 +336,6 @@ new EXRLoader().load(
     scene.environmentIntensity = 0.15;
     scene.environmentRotation = new THREE.Euler(0, 0, 0);
     scene.backgroundRotation = new THREE.Euler(0, 0, 0);
-    console.log('HDRI loaded');
     if (window.preloaderDone) window.preloaderDone('hdri');
   },
   undefined,
@@ -831,8 +842,8 @@ const floorMaterial = new THREE.MeshPhysicalMaterial({
 // Reflector underneath — captures real screen content
 const reflectorGeo = new THREE.PlaneGeometry(240, 240);
 const reflector = new Reflector(reflectorGeo, {
-  textureWidth: 256,
-  textureHeight: 256,
+  textureWidth: 128,
+  textureHeight: 128,
   color: 0x666677,
   recursion: 0,
 });
@@ -1162,7 +1173,6 @@ const allLabels = Object.values(tl.labels).map((t) => t / totalDur);
 const sectionSnaps = SECTIONS.map((sec) => tl.labels[sec.id] / totalDur);
 
 let scrollProgress = 0;
-let prevScrollProgress = 0;
 let scrollDirection = 'forward';
 
 ScrollTrigger.create({
@@ -1180,7 +1190,6 @@ ScrollTrigger.create({
     if (self.progress !== scrollProgress) {
       scrollDirection = self.progress > scrollProgress ? 'forward' : 'backward';
     }
-    prevScrollProgress = scrollProgress;
     scrollProgress = self.progress;
   },
 });
@@ -1188,10 +1197,15 @@ ScrollTrigger.create({
 // ── Overlay management ─────────────────────────────────────────────────────
 const overlayEls = SECTIONS.map((s) => document.getElementById(s.id));
 const navLinkEls = Array.from(document.querySelectorAll('.nav-link[data-section]'));
+const cameraLogoEl = document.getElementById('camera-logo');
 const SHOW_THRESHOLD = MAX_ZOOM * 0.5;
 const FULL_THRESHOLD = MAX_ZOOM * 0.8;
 const INTERACT_THRESHOLD = MAX_ZOOM * 0.9;
 const sectionWasActive = new Array(SECTIONS.length).fill(false);
+
+// True when an opaque section overlay fully covers the viewport — the 3D scene
+// is then 100% occluded, so the whole composer render can be skipped.
+let sceneOccluded = false;
 
 // Hide all overlays at boot (intro camera is active)
 if (intro.active) {
@@ -1213,11 +1227,13 @@ function updateOverlays() {
 
   const isFacing = minDist < 0.15;
 
+  let maxOpacity = 0;
   overlayEls.forEach((el, i) => {
     if (!el) return;
     if (i === closest && isFacing && cam.zoom > SHOW_THRESHOLD) {
       const t = (cam.zoom - SHOW_THRESHOLD) / (FULL_THRESHOLD - SHOW_THRESHOLD);
       const opacity = Math.min(1, Math.max(0, t));
+      maxOpacity = Math.max(maxOpacity, opacity);
       el.style.opacity = opacity;
       const canInteract = cam.zoom > INTERACT_THRESHOLD;
       el.style.pointerEvents = canInteract ? 'auto' : 'none';
@@ -1253,6 +1269,14 @@ function updateOverlays() {
   if (window.setNavProgress) {
     window.setNavProgress(scrollProgress);
   }
+
+  // Show logo only when camera is zoomed out (transition / camera view)
+  if (cameraLogoEl) {
+    cameraLogoEl.style.opacity = cam.zoom < SHOW_THRESHOLD ? 1 : 0;
+  }
+
+  // Fully covered by an opaque overlay → the 3D render can be skipped this frame.
+  sceneOccluded = maxOpacity >= 0.999;
 }
 
 // ── Nav click → scroll ─────────────────────────────────────────────────────
@@ -1283,62 +1307,8 @@ window.addEventListener('mousemove', (e) => {
   mouse.y = (e.clientY / window.innerHeight - 0.5) * 2;
 });
 
-// ── Screen glitch system ─────────────────────────────────────────────────────
-const glitchState = screenMeshes.map(() => ({
-  active: false,
-  timer: 0,
-  duration: 0,
-  nextGlitch: 2 + Math.random() * 6,  // seconds until first glitch
-  origOffsetY: 0,
-  origEmissiveR: 1, origEmissiveG: 1, origEmissiveB: 1,
-}));
-
-function updateGlitches(dt) {
-  glitchState.forEach((g, i) => {
-    if (i === 0 || i === 1 || i === 2 || i === 3) return; // all screens use MeshBasicMaterial
-    const mat = screenMeshes[i].material;
-    g.nextGlitch -= dt;
-
-    if (!g.active && g.nextGlitch <= 0) {
-      // Start a glitch
-      g.active = true;
-      g.duration = 0.05 + Math.random() * 0.15;  // 50-200ms
-      g.timer = 0;
-      g.origOffsetY = mat.map ? mat.map.offset.y : 0;
-    }
-
-    if (g.active) {
-      g.timer += dt;
-      // Random UV shift (horizontal scan lines effect)
-      if (mat.map) {
-        mat.map.offset.y = g.origOffsetY + (Math.random() - 0.5) * 0.04;
-        if (mat.emissiveMap && mat.emissiveMap !== mat.map) {
-          mat.emissiveMap.offset.y = mat.map.offset.y;
-        }
-      }
-      // Flicker emissive intensity
-      mat.emissiveIntensity = 0.5 + Math.random() * 2.5;
-      // Occasional color shift
-      if (Math.random() > 0.5) {
-        mat.emissive.setRGB(0.7 + Math.random() * 0.3, 0.8 + Math.random() * 0.2, 1);
-      }
-
-      if (g.timer >= g.duration) {
-        // End glitch — restore
-        g.active = false;
-        g.nextGlitch = 3 + Math.random() * 8;  // 3-11s until next
-        if (mat.map) {
-          mat.map.offset.y = g.origOffsetY;
-          if (mat.emissiveMap && mat.emissiveMap !== mat.map) {
-            mat.emissiveMap.offset.y = g.origOffsetY;
-          }
-        }
-        mat.emissiveIntensity = 2.0; // non-hero screens only
-        mat.emissive.setRGB(1, 1, 1);
-      }
-    }
-  });
-}
+// All four screens use MeshBasicMaterial (live canvas textures), so the old
+// emissive glitch/breathing systems were no-ops and have been removed.
 
 let lastTime = performance.now();
 
@@ -1349,9 +1319,6 @@ function animate() {
   const now = performance.now();
   const dt = (now - lastTime) / 1000;
   lastTime = now;
-
-  // Screen glitch updates
-  updateGlitches(dt);
 
   // Floor wave pulses
   updateFloorWaves(dt);
@@ -1385,17 +1352,17 @@ function animate() {
   }
 
 
-  // Motion blur — stronger when camera is rotating
+  // Motion blur — stronger when camera is rotating. Skip the pass entirely when
+  // idle (no trail to accumulate) to save a full-screen blend every frame.
   const rotDelta = Math.abs(cam.rotY - prevRotY);
   const blurAmount = Math.min(0.2, rotDelta * 3);
   afterimagePass.uniforms['damp'].value = blurAmount;
+  afterimagePass.enabled = blurAmount > 0.002 && !window.__noAfterimage;
   prevRotY = cam.rotY;
 
-  // Re-upload canvas textures — always update so reflector can capture all screens
-  if (heroTexture)     heroTexture.needsUpdate = true;
-  if (aboutTexture)    aboutTexture.needsUpdate = true;
-  if (projectsTexture) projectsTexture.needsUpdate = true;
-  if (contactTexture)  contactTexture.needsUpdate = true;
+  // Dev-only isolation toggles for profiling the composer cost.
+  bloomPass.enabled = !window.__noBloom;
+  combinedPass.enabled = !window.__noCombined;
 
   // Expose camera state so canvas modules can pause heavy rendering when their
   // screen is on the far side of the scene (not facing the camera).
@@ -1427,7 +1394,7 @@ function animate() {
   // Hide scene clutter during intro top-down view
   embers.visible = !intro.active;
   particles.visible = !intro.active;
-  reflector.visible = !intro.active;
+  reflector.visible = !intro.active && !window.__noReflector;
   cableDots.forEach(d => { d.visible = !intro.active; });
 
   // Animate cable pulse dots
@@ -1469,16 +1436,6 @@ function animate() {
   combinedPass.uniforms.uChromatic.value = 0.003 + rotDelta * 2;
   combinedPass.uniforms.uGrainTime.value = performance.now() * 0.001;
 
-  // Screen idle breathing — subtle emissive pulse
-  const breathe = Math.sin(now * 0.001) * 0.15;
-  screenMeshes.forEach((m, i) => {
-    if (i === 0 || i === 1 || i === 2 || i === 3) return; // all screens use MeshBasicMaterial
-    if (!glitchState[i].active) {
-      const base = 2.0;
-      m.material.emissiveIntensity = base + breathe;
-    }
-  });
-
   // Screen floating — each screen bobs gently at its own phase
   screenGroups.forEach((g, i) => {
     const phase = i * 1.57; // quarter-π offset per screen
@@ -1503,9 +1460,46 @@ function animate() {
   particleMat.opacity = 0.4 + camDelta * 0.3;
 
   if (!intro.active) updateOverlays();
-  if (stats) stats.begin();
-  composer.render();
-  if (stats) stats.end();
+
+  // Skip the entire 3D render while an opaque overlay fully covers the scene —
+  // the composer output would be invisible behind it anyway.
+  // (window.__forceOccluded is a dev-only isolation switch for profiling.)
+  if (!sceneOccluded && !window.__forceOccluded) {
+    // Only re-upload the canvas textures that can actually be seen: the screen
+    // currently facing the camera every frame, plus one of the others per frame
+    // (round-robin) so peripheral/reflected screens stay reasonably fresh.
+    let fIdx = 0, fMin = Infinity;
+    for (let i = 0; i < SECTIONS.length; i++) {
+      const d = Math.abs(cam.rotY - SECTIONS[i].rotY);
+      if (d < fMin) { fMin = d; fIdx = i; }
+    }
+    const rr = frameCount % 4;
+    const texes = [heroTexture, aboutTexture, projectsTexture, contactTexture];
+    for (let i = 0; i < texes.length; i++) {
+      if (texes[i] && (i === fIdx || i === rr)) texes[i].needsUpdate = true;
+    }
+
+    if (stats) stats.begin();
+    composer.render();
+    if (stats) stats.end();
+  }
+
+  // Averaged FPS readout (dev) — from real frame intervals, refreshed every 0.5s
+  if (fpsEl) {
+    fpsFrames++;
+    fpsAccum += dt;
+    if (fpsAccum >= 0.5) {
+      fpsEl.textContent = Math.round(fpsFrames / fpsAccum) + ' fps avg';
+      fpsFrames = 0;
+      fpsAccum = 0;
+    }
+  }
+
+  frameCount++;
+}
+let frameCount = 0;
+if (import.meta.env.DEV) {
+  window.__dbg = () => ({ zoom: +cam.zoom.toFixed(1), rotY: +cam.rotY.toFixed(2), occ: sceneOccluded });
 }
 animate();
 

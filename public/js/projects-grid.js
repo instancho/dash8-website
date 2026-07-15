@@ -119,9 +119,13 @@
 
   window.fetchProjects().then(fillGrid);
 
+  // Debounced — cached projects resolve synchronously, so this only rebuilds
+  // the grid once the user stops resizing.
+  let resizeTimer;
   window.addEventListener('resize', () => {
-    if (window.fetchProjects) {
-      window.fetchProjects().then(fillGrid);
-    }
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+      if (window.fetchProjects) window.fetchProjects().then(fillGrid);
+    }, 150);
   });
 })();

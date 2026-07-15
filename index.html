@@ -6,7 +6,7 @@
   <title>Dash8</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Micro+5&family=Share+Tech+Mono&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Micro+5&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="css/style.css" />
   <style>
     @font-face {
@@ -39,26 +39,11 @@
   <section id="about" class="content-overlay">
     <div class="about-services">
       <canvas id="about-ascii-canvas"></canvas>
-      <div class="service-card" data-service="0">
-        <span class="service-index">01</span>
-        <h2 class="service-title">BRANDING</h2>
-        <p class="service-desc">Visual identity systems that cut through noise</p>
-      </div>
-      <div class="service-card" data-service="1">
-        <span class="service-index">02</span>
-        <h2 class="service-title">WEB DESIGN</h2>
-        <p class="service-desc">Immersive digital experiences built to perform</p>
-      </div>
-      <div class="service-card" data-service="2">
-        <span class="service-index">03</span>
-        <h2 class="service-title">DEVELOPMENT</h2>
-        <p class="service-desc">Engineered front-ends with cinematic precision</p>
-      </div>
-      <div class="service-card" data-service="3">
-        <span class="service-index">04</span>
-        <h2 class="service-title">STRATEGY</h2>
-        <p class="service-desc">Creative direction aligned with business goals</p>
-      </div>
+      <!-- Card bodies are built dynamically by about-services.js from services-data.js -->
+      <div class="service-card" data-service="0"></div>
+      <div class="service-card" data-service="1"></div>
+      <div class="service-card" data-service="2"></div>
+      <div class="service-card" data-service="3"></div>
       <button class="service-nav service-nav--prev" id="service-prev" aria-label="Previous service">
         <img src="/About Us/Frame 58.png" alt="Previous" />
       </button>
@@ -140,6 +125,11 @@
     </defs>
   </svg>
 
+  <!-- ── Top-centre logo (visible in camera/transition view only) ── -->
+  <div id="camera-logo">
+    <img src="/Assets/dash8-logo-banner.png" alt="Dash8 Studio" />
+  </div>
+
   <!-- ── Bottom gradient for navbar readability ────────── -->
   <div id="bottom-fade"></div>
 
@@ -161,6 +151,7 @@
   <script src="js/projects-data.js"></script>
   <script src="js/projects-grid.js"></script>
   <script src="js/contact-hands.js"></script>
+  <script src="js/services-data.js"></script>
   <script src="js/about-services.js"></script>
   <script src="js/char-cloud.js"></script>
   <script src="js/projects-bg.js"></script>
