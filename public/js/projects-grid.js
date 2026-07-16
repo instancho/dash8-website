@@ -19,22 +19,6 @@
       card.appendChild(img);
     }
 
-    // ── Default overlay (visible in normal state) ────────────────────────────
-    const overlay = document.createElement('div');
-    overlay.className = 'proj-card-overlay';
-
-    const num = document.createElement('span');
-    num.className = 'proj-card-number';
-    num.textContent = '// PROJECT ' + proj.number + (proj.type ? ' — ' + proj.type : '');
-
-    const name = document.createElement('span');
-    name.className = 'proj-card-name';
-    name.textContent = proj.name;
-
-    overlay.appendChild(num);
-    overlay.appendChild(name);
-    card.appendChild(overlay);
-
     // ── Hover detail panel (slides up on hover) ──────────────────────────────
     const detail = document.createElement('div');
     detail.className = 'proj-card-detail';
@@ -92,7 +76,7 @@
     grid.style.width = pad + 'px';
     grid.style.height = pad + 'px';
     grid.style.gridTemplateColumns = 'repeat(4, 336px)';
-    grid.style.gridAutoRows = '240px';
+    grid.style.gridAutoRows = 'auto';
     grid.style.justifyContent = 'center';
     grid.style.alignContent = 'center';
   }
