@@ -4,7 +4,7 @@
    Mirrors char-cloud.js structure but no text masking — full ambient coverage.
    ========================================================================= */
 (function () {
-  const BG    = '#e3b23c';
+  const BG    = '#0F0F0F';
   const CHARS = '01ABCDEFGHIJKLMNOPQRSTUVWXYZ.:+*#@!~=-<>{}[]|/\\0184729563RTXY'.split('');
 
   const CELL = 12;
@@ -12,6 +12,20 @@
   function noise2(x, y, t) {
     const s = Math.sin(x * 12.9898 + y * 78.233 + t * 1.1) * 43758.5453;
     return s - Math.floor(s);
+  }
+
+  // Load project thumbnails for the 3D screen preview
+  let thumbImages = [];
+  if (window.fetchProjects) {
+    window.fetchProjects().then(function (projects) {
+      projects.forEach(function (p) {
+        if (!p.thumbnail) return;
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.src = p.thumbnail;
+        thumbImages.push(img);
+      });
+    });
   }
 
   const canvas = document.getElementById('projects-canvas');
@@ -121,7 +135,7 @@
         const charIdx  = grid[idx] < CHARS.length ? grid[idx] : grid[idx] - CHARS.length;
         const ch = (charPool[charIdx]) || '.';
 
-        ctx.fillStyle = `rgba(0,0,0,${(0.1 + totalB * 0.75) * 0.5})`;
+        ctx.fillStyle = `rgba(180,50,50,${(0.1 + totalB * 0.75) * 0.5})`;
         ctx.fillText(ch, nx, y);
       }
     }
@@ -157,7 +171,7 @@
           if (dist < bandWidth) {
             const intensity = (1 - dist / bandWidth) * wAlpha;
             const wch = waveChars[(c * 7 + r * 13 + (t * 20 | 0)) % waveChars.length];
-            ctx.fillStyle = `rgba(0, 0, 0, ${intensity})`;
+            ctx.fillStyle = `rgba(180, 50, 50, ${intensity})`;
             ctx.fillText(wch, c * CELL + CELL / 2, r * CELL + CELL / 2);
           }
         }
@@ -166,14 +180,14 @@
     }
 
     // ── Diagonal card grid preview — visible on 3D screen from outside ─────
-    // Fades out as camera zooms in (HTML overlay replaces it)
+    // Draws actual project thumbnails; fades out as camera zooms in
     {
       const zoom    = window.projectsZoom || 0;
       const showT   = 15;
       const fullT   = 24;
       const cardAlpha = zoom < showT ? 1 : Math.max(0, 1 - (zoom - showT) / (fullT - showT));
 
-      if (cardAlpha > 0) {
+      if (cardAlpha > 0 && thumbImages.length > 0) {
         ctx.save();
         ctx.globalAlpha = cardAlpha;
 
@@ -183,50 +197,41 @@
         ctx.rotate(-18 * Math.PI / 180);
 
         const cardW = Math.round(W * 0.22);
-        const cardH = Math.round(cardW * 0.71);
-        const tabH  = Math.round(cardH * 0.12);
+        const cardH = Math.round(cardW / 1.4);
         const gap   = Math.round(cardW * 0.11);
         const gridCols = 4;
         const gridRows = 5;
         const totalW = gridCols * cardW + (gridCols - 1) * gap;
-        const totalH = gridRows * (cardH + tabH) + (gridRows - 1) * gap;
+        const totalH = gridRows * cardH + (gridRows - 1) * gap;
         const ox = -totalW / 2;
         const oy = -totalH / 2;
+        const r = Math.max(3, Math.round(cardW * 0.03));
 
         for (let row = 0; row < gridRows; row++) {
           for (let col = 0; col < gridCols; col++) {
             const x = ox + col * (cardW + gap);
-            const y = oy + row * (cardH + tabH + gap);
-            const r = Math.max(3, Math.round(cardW * 0.03));
-            const tabW = Math.round(cardW * 0.35);
-            const tabR = Math.max(2, Math.round(r * 0.7));
+            const y = oy + row * (cardH + gap);
+            const imgIdx = (row * gridCols + col) % thumbImages.length;
+            const img = thumbImages[imgIdx];
 
-            // Tab
-            ctx.fillStyle = '#0c0c0c';
             ctx.beginPath();
-            ctx.roundRect(x, y, tabW, tabH, [tabR, tabR, 0, 0]);
-            ctx.fill();
+            ctx.roundRect(x, y, cardW, cardH, r);
+            ctx.clip();
 
-            // Tab label
-            const numSz = Math.max(5, Math.round(tabH * 0.5));
-            ctx.fillStyle = 'rgba(227,178,60,0.6)';
-            ctx.font = `500 ${numSz}px "JetBrains Mono",monospace`;
-            ctx.textAlign = 'left';
-            ctx.textBaseline = 'middle';
-            const projIdx = (row * gridCols + col) % 8 + 1;
-            ctx.fillText('/ PROJECT ' + projIdx, x + 4, y + tabH / 2);
+            if (img.complete && img.naturalWidth > 0) {
+              ctx.drawImage(img, x, y, cardW, cardH);
+            } else {
+              ctx.fillStyle = '#0c0c0c';
+              ctx.fillRect(x, y, cardW, cardH);
+            }
 
-            // Card body
-            ctx.fillStyle = '#0c0c0c';
             ctx.beginPath();
-            ctx.roundRect(x, y + tabH, cardW, cardH, [0, r, r, r]);
-            ctx.fill();
-
-            ctx.strokeStyle = 'rgba(255,255,255,0.06)';
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            ctx.roundRect(x + 0.5, y + tabH + 0.5, cardW - 1, cardH - 1, [0, r, r, r]);
-            ctx.stroke();
+            ctx.roundRect(x, y, cardW, cardH, r);
+            ctx.restore();
+            ctx.save();
+            ctx.globalAlpha = cardAlpha;
+            ctx.translate(cx, cy);
+            ctx.rotate(-18 * Math.PI / 180);
           }
         }
 

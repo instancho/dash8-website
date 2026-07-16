@@ -258,6 +258,9 @@ function startHeroLoop() {
 function tick(tNow) {
   heroRafId = null;
   if (!heroActive()) return;  // section not visible — stop until reactivated
+  // Cap at ~33fps — the ambient cloud doesn't need 60fps and this frees the
+  // main thread for the Three.js render loop.
+  if (tNow - tPrev < 30) { heroRafId = requestAnimationFrame(tick); return; }
   const dt = Math.min(0.05, (tNow - tPrev) / 1000);
   tPrev = tNow;
   const t = tNow / 1000;
