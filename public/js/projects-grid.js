@@ -15,7 +15,7 @@
       img.className = 'proj-card-thumb';
       img.src = proj.thumbnail;
       img.alt = proj.name;
-      img.loading = 'lazy';
+      img.loading = 'eager';
       card.appendChild(img);
     }
 
